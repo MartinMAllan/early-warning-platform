@@ -1,0 +1,127 @@
+{
+  "gender": [
+    {
+      "gender": "F",
+      "withdrawal_rate_pct": 30.48,
+      "n": 14718
+    },
+    {
+      "gender": "M",
+      "withdrawal_rate_pct": 31.72,
+      "n": 17875
+    }
+  ],
+  "age_band": [
+    {
+      "age_band": "0-35",
+      "withdrawal_rate_pct": 32.17,
+      "n": 22944
+    },
+    {
+      "age_band": "35-55",
+      "withdrawal_rate_pct": 28.85,
+      "n": 9433
+    },
+    {
+      "age_band": "55<=",
+      "withdrawal_rate_pct": 25.0,
+      "n": 216
+    }
+  ],
+  "disability": [
+    {
+      "disability": "N",
+      "withdrawal_rate_pct": 30.28,
+      "n": 29429
+    },
+    {
+      "disability": "Y",
+      "withdrawal_rate_pct": 39.35,
+      "n": 3164
+    }
+  ],
+  "highest_education": [
+    {
+      "highest_education": "A Level or Equivalent",
+      "withdrawal_rate_pct": 28.69,
+      "n": 14045
+    },
+    {
+      "highest_education": "HE Qualification",
+      "withdrawal_rate_pct": 27.12,
+      "n": 4730
+    },
+    {
+      "highest_education": "Lower Than A Level",
+      "withdrawal_rate_pct": 35.11,
+      "n": 13158
+    },
+    {
+      "highest_education": "No Formal quals",
+      "withdrawal_rate_pct": 42.94,
+      "n": 347
+    },
+    {
+      "highest_education": "Post Graduate Qualification",
+      "withdrawal_rate_pct": 23.64,
+      "n": 313
+    }
+  ],
+  "imd_band": [
+    {
+      "imd_band": "0-10%",
+      "withdrawal_rate_pct": 37.18,
+      "n": 3311
+    },
+    {
+      "imd_band": "10-20",
+      "withdrawal_rate_pct": 35.44,
+      "n": 3516
+    },
+    {
+      "imd_band": "20-30%",
+      "withdrawal_rate_pct": 36.15,
+      "n": 3654
+    },
+    {
+      "imd_band": "30-40%",
+      "withdrawal_rate_pct": 30.94,
+      "n": 3539
+    },
+    {
+      "imd_band": "40-50%",
+      "withdrawal_rate_pct": 32.0,
+      "n": 3256
+    },
+    {
+      "imd_band": "50-60%",
+      "withdrawal_rate_pct": 28.78,
+      "n": 3124
+    },
+    {
+      "imd_band": "60-70%",
+      "withdrawal_rate_pct": 29.57,
+      "n": 2905
+    },
+    {
+      "imd_band": "70-80%",
+      "withdrawal_rate_pct": 27.68,
+      "n": 2879
+    },
+    {
+      "imd_band": "80-90%",
+      "withdrawal_rate_pct": 28.02,
+      "n": 2762
+    },
+    {
+      "imd_band": "90-100%",
+      "withdrawal_rate_pct": 25.87,
+      "n": 2536
+    },
+    {
+      "imd_band": "Unknown",
+      "withdrawal_rate_pct": 21.24,
+      "n": 1111
+    }
+  ]
+}

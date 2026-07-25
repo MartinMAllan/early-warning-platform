@@ -1,0 +1,11 @@
+{
+  "unique_student_module_presentation": true,
+  "no_null_target": true,
+  "score_range_valid": true,
+  "class_balance": {
+    "0": 0.6884,
+    "1": 0.3116
+  },
+  "n_rows": 32593,
+  "n_features": 28
+}

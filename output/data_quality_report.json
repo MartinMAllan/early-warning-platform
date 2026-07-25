@@ -1,0 +1,137 @@
+{
+  "generated_from": "OULAD (Kuzilek, Hlosta & Zdrahal, 2017)",
+  "tables": [
+    {
+      "table": "courses",
+      "rows": 22,
+      "columns": [
+        "code_module",
+        "code_presentation",
+        "module_presentation_length"
+      ],
+      "missingness": {},
+      "duplicate_rows": 0
+    },
+    {
+      "table": "assessments",
+      "rows": 206,
+      "columns": [
+        "code_module",
+        "code_presentation",
+        "id_assessment",
+        "assessment_type",
+        "date",
+        "weight"
+      ],
+      "missingness": {
+        "date": {
+          "missing": 11,
+          "pct": 5.34
+        }
+      },
+      "duplicate_rows": 0
+    },
+    {
+      "table": "studentInfo",
+      "rows": 32593,
+      "columns": [
+        "code_module",
+        "code_presentation",
+        "id_student",
+        "gender",
+        "region",
+        "highest_education",
+        "imd_band",
+        "age_band",
+        "num_of_prev_attempts",
+        "studied_credits",
+        "disability",
+        "final_result"
+      ],
+      "missingness": {
+        "imd_band": {
+          "missing": 1111,
+          "pct": 3.41
+        }
+      },
+      "duplicate_rows": 0
+    },
+    {
+      "table": "studentRegistration",
+      "rows": 32593,
+      "columns": [
+        "code_module",
+        "code_presentation",
+        "id_student",
+        "date_registration",
+        "date_unregistration"
+      ],
+      "missingness": {
+        "date_registration": {
+          "missing": 45,
+          "pct": 0.14
+        },
+        "date_unregistration": {
+          "missing": 22521,
+          "pct": 69.1
+        }
+      },
+      "duplicate_rows": 0
+    },
+    {
+      "table": "studentAssessment",
+      "rows": 173912,
+      "columns": [
+        "id_assessment",
+        "id_student",
+        "date_submitted",
+        "is_banked",
+        "score"
+      ],
+      "missingness": {
+        "score": {
+          "missing": 173,
+          "pct": 0.1
+        }
+      },
+      "duplicate_rows": 0
+    },
+    {
+      "table": "studentVle",
+      "rows": 10655280,
+      "columns": [
+        "code_module",
+        "code_presentation",
+        "id_student",
+        "id_site",
+        "date",
+        "sum_click"
+      ],
+      "missingness": {},
+      "duplicate_rows": 787170
+    },
+    {
+      "table": "vle",
+      "rows": 6364,
+      "columns": [
+        "id_site",
+        "code_module",
+        "code_presentation",
+        "activity_type",
+        "week_from",
+        "week_to"
+      ],
+      "missingness": {
+        "week_from": {
+          "missing": 5243,
+          "pct": 82.39
+        },
+        "week_to": {
+          "missing": 5243,
+          "pct": 82.39
+        }
+      },
+      "duplicate_rows": 0
+    }
+  ]
+}

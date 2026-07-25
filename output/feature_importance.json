@@ -1,0 +1,62 @@
+[
+  {
+    "feature": "submission_rate",
+    "importance": 0.2905
+  },
+  {
+    "feature": "active_days",
+    "importance": 0.0839
+  },
+  {
+    "feature": "code_module_GGG",
+    "importance": 0.0509
+  },
+  {
+    "feature": "early_active_days",
+    "importance": 0.0304
+  },
+  {
+    "feature": "code_module_CCC",
+    "importance": 0.0256
+  },
+  {
+    "feature": "code_module_BBB",
+    "importance": 0.0197
+  },
+  {
+    "feature": "total_clicks",
+    "importance": 0.0185
+  },
+  {
+    "feature": "studied_credits",
+    "importance": 0.0179
+  },
+  {
+    "feature": "region_Wales",
+    "importance": 0.0176
+  },
+  {
+    "feature": "region_Scotland",
+    "importance": 0.0162
+  },
+  {
+    "feature": "code_module_DDD",
+    "importance": 0.0156
+  },
+  {
+    "feature": "pct_late",
+    "importance": 0.0139
+  },
+  {
+    "feature": "num_of_prev_attempts",
+    "importance": 0.0132
+  },
+  {
+    "feature": "mean_score",
+    "importance": 0.0117
+  },
+  {
+    "feature": "region_Ireland",
+    "importance": 0.0117
+  }
+]

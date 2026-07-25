@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<title>Early Warning Platform - Student Attrition Risk</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    color-scheme: dark;
+    --void:#05070d;
+    --panel: rgba(255,255,255,0.045);
+    --panel-strong: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.14);
+    --border-soft: rgba(255,255,255,0.08);
+    --text-1:#f3f5fa;
+    --text-2:#b7bfd2;
+    --text-3:#7d859b;
+    --blue:#3987e5;
+    --blue-soft:#8fc0f7;
+    --blue-deep:#184f95;
+    --amber:#d9932c;
+    --aqua:#1baf7a;
+    --good:#1fbf5c;
+    --warning:#fab219;
+    --serious:#ec835a;
+    --critical:#e6544f;
+    --radius:14px;
+    --sidebar-w:278px;
+    font-family: "Times New Roman", Times, "Liberation Serif", Georgia, serif;
+    font-size:17px;
+  }
+  *{box-sizing:border-box;}
+  html,body{ margin:0; padding:0; background:var(--void); color:var(--text-1); min-height:100%; }
+  body{ position:relative; line-height:1.6; font-variant-numeric: normal; }
+  h1,h2,h3,h4{ font-weight:700; margin:0; line-height:1.25; }
+  p{ color:var(--text-2); margin:0 0 10px; }
+  a{ color:var(--blue-soft); }
+  code{ font-family:"Courier New", Courier, monospace; }
+  .mono, .n, .num-val{ font-variant-numeric: tabular-nums; }
+
+  #stars{ position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:0.55; }
+  .bg-wash{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 900px 500px at 100% -10%, rgba(57,135,229,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 0% 100%, rgba(27,175,122,0.07), transparent 60%),
+      linear-gradient(180deg, #05070d 0%, #070a13 100%);
+  }
+
+  /* ---------- App shell ---------- */
+  .app-shell{ position:relative; z-index:1; display:flex; min-height:100vh; }
+
+  .sidebar{
+    width:var(--sidebar-w); flex:0 0 var(--sidebar-w); height:100vh; position:sticky; top:0;
+    overflow-y:auto; padding:20px 14px 40px; border-right:1px solid var(--border-soft);
+    background:rgba(7,10,18,0.72); backdrop-filter:blur(14px);
+    z-index:30;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; padding:8px 10px 18px; border-bottom:1px solid var(--border-soft); margin-bottom:16px; }
+  .brand-mark{ width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--blue),var(--aqua)); flex:0 0 auto; }
+  .brand-text{ font-size:15.5px; font-weight:700; line-height:1.25; }
+  .brand-text small{ display:block; font-weight:400; font-size:12px; color:var(--text-3); }
+
+  .nav-group{ margin-top:20px; }
+  .nav-group-title{ font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-3); padding:0 10px; margin-bottom:8px; font-family:"Courier New",monospace; }
+  .nav-link{
+    display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:9px; margin-bottom:2px;
+    color:var(--text-2); text-decoration:none; font-size:15px; border:1px solid transparent;
+  }
+  .nav-link:hover{ background:rgba(255,255,255,0.05); color:var(--text-1); }
+  .nav-link.active{ background:linear-gradient(120deg, rgba(57,135,229,0.22), rgba(27,175,122,0.12)); color:#fff; border-color:rgba(57,135,229,0.35); }
+  .nav-link .dot{ width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
+  .nav-link .tag{ font-size:10px; font-weight:700; padding:2px 6px; border-radius:5px; flex:0 0 auto; font-family:"Courier New",monospace; }
+  .tag-get{ background:rgba(57,135,229,0.2); color:var(--blue-soft); }
+  .tag-post{ background:rgba(217,147,44,0.22); color:var(--amber); }
+  .nav-link .lbl{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav-link .sub{ display:block; font-size:11.5px; color:var(--text-3); }
+
+  .sidebar-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:29; }
+  .menu-toggle{ display:none; }
+
+  .main-col{ flex:1; min-width:0; }
+  .topbar{
+    position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:16px; justify-content:space-between;
+    padding:14px 30px; border-bottom:1px solid var(--border-soft); background:rgba(5,7,13,0.78); backdrop-filter:blur(10px);
+  }
+  .breadcrumb{ font-size:14px; color:var(--text-3); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .breadcrumb b{ color:var(--text-1); font-weight:700; }
+  .topbar-search{ display:flex; align-items:center; gap:8px; }
+  .topbar-search input{ width:220px; }
+
+  #content{ padding:30px 34px 90px; max-width:1040px; }
+  @media (max-width:1180px){ #content{ max-width:none; } }
+
+  /* ---------- Forms ---------- */
+  input[type=text], input[type=number], select, textarea{
+    background:rgba(255,255,255,0.045); border:1px solid var(--border); color:var(--text-1);
+    padding:9px 12px; border-radius:9px; font:inherit; font-size:15.5px; outline:none;
+  }
+  /* Native <select> popups render on their own opaque surface, outside our
+     glass/rgba styling, and inherit only color - not background - from the
+     rules above. Without an explicit opaque background here the option list
+     falls back to the browser's white popup with our white text on top of it. */
+  select{ color-scheme:dark; background-color:#0c1220; }
+  select option{ background-color:#0c1220; color:var(--text-1); }
+  input:focus, select:focus, textarea:focus, a:focus-visible, .nav-link:focus-visible, button:focus-visible{
+    outline:2px solid var(--blue-soft); outline-offset:2px;
+  }
+  textarea{ resize:vertical; min-height:70px; width:100%; }
+  button{ font:inherit; }
+
+  .btn{ padding:10px 20px; border-radius:10px; font-weight:700; font-size:15px; cursor:pointer; border:1px solid var(--border); color:var(--text-1); background:var(--panel); text-decoration:none; display:inline-flex; align-items:center; gap:8px; }
+  .btn-grad{ background:linear-gradient(120deg,var(--blue),var(--aqua)); border:none; color:#04101a; }
+  .link-btn{ background:none; border:none; color:var(--blue-soft); font:inherit; font-size:13.5px; cursor:pointer; text-decoration:underline; padding:0; }
+
+  /* ---------- Glass surfaces ---------- */
+  .glass{
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+    border:1px solid var(--border); border-radius:var(--radius);
+    backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 16px 36px -22px rgba(0,0,0,0.55);
+  }
+  .panel{ padding:24px 26px; margin-bottom:20px; }
+  .panel-tight{ padding:16px 18px; }
+  .panel-head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .panel h3{ font-size:18px; }
+
+  /* ---------- Chips / badges ---------- */
+  .chip{ font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px; display:inline-block; margin:2px 4px 2px 0; }
+  .chip-blue{ background:rgba(57,135,229,0.16); color:var(--blue-soft); border:1px solid rgba(57,135,229,0.32); }
+  .eyebrow{ text-transform:uppercase; letter-spacing:.1em; font-size:12.5px; font-weight:700; color:var(--blue-soft); font-family:"Courier New",monospace; }
+
+  .risk-badge{ display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:13.5px; padding:4px 10px; border-radius:8px; }
+  .risk-low{ color:#5be08c; background:rgba(31,191,92,0.14); }
+  .risk-medium{ color:#ffcb5c; background:rgba(250,178,25,0.14); }
+  .risk-high{ color:#ff9490; background:rgba(230,84,79,0.16); }
+
+  .status-tag{ font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:6px; flex:0 0 auto; }
+  .status-tag.done{ color:#5be08c; background:rgba(31,191,92,0.14); }
+  .status-tag.partial{ color:#ffcb5c; background:rgba(250,178,25,0.14); }
+  .status-tag.todo{ color:#ff9490; background:rgba(230,84,79,0.16); }
+
+  .status-dot{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .dot-good{ background:var(--good); box-shadow:0 0 6px var(--good); }
+  .dot-warn{ background:var(--warning); box-shadow:0 0 6px var(--warning); }
+
+  /* ---------- Page head ---------- */
+  .page-head{ margin-bottom:26px; max-width:760px; }
+  .page-head h1{ font-size:30px; margin:8px 0 10px; }
+  .page-head p{ font-size:16px; }
+  .person-line{ font-size:16px; color:var(--text-1); margin-bottom:8px; }
+  .person-line .banner{ color:var(--text-3); font-family:"Courier New",monospace; font-size:14px; }
+  .back-link{ font-size:14px; display:inline-block; margin-bottom:10px; }
+
+  /* ---------- Grids ---------- */
+  .kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:4px 0 28px; }
+  .kpi-card .l{ font-size:12px; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+  .kpi-card .n{ font-size:25px; font-weight:700; }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:900px){ .kpi-row{ grid-template-columns:repeat(2,1fr); } .two-col, .grid-2{ grid-template-columns:1fr; } }
+
+  /* ---------- Component cards ---------- */
+  .component-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:30px; }
+  @media (max-width:760px){ .component-grid{ grid-template-columns:1fr; } }
+  .component-card{ display:block; padding:20px 22px; text-decoration:none; color:inherit; transition:transform .15s ease, border-color .15s ease; }
+  .component-card:hover{ transform:translateY(-2px); border-color:rgba(57,135,229,0.4); }
+  .cc-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .cc-num{ font-size:13px; font-weight:700; color:var(--text-3); font-family:"Courier New",monospace; }
+  .component-card h3{ font-size:19px; margin:6px 0 3px; }
+  .cc-person{ font-size:14.5px; color:var(--blue-soft); margin:0 0 8px; }
+  .cc-focus{ font-size:14px; color:var(--text-2); margin:0 0 14px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .cc-progress{ height:6px; border-radius:4px; background:rgba(255,255,255,0.07); overflow:hidden; }
+  .cc-progress-fill{ height:100%; background:linear-gradient(90deg,var(--blue),var(--aqua)); }
+  .cc-progress-label{ font-size:12px; color:var(--text-3); margin-top:6px; }
+
+  /* ---------- Objective list ---------- */
+  .obj-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:9px; }
+  .obj-list li{ display:flex; gap:11px; align-items:center; font-size:14.5px; color:var(--text-2); padding:11px 13px; border-radius:11px; background:rgba(255,255,255,0.03); }
+  .obj-list li .num{ flex:0 0 auto; width:22px; height:22px; border-radius:6px; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .obj-list li span:nth-child(2){ flex:1; }
+  .mark-done{ background:rgba(31,191,92,0.2); color:#5be08c; }
+  .mark-partial{ background:rgba(250,178,25,0.2); color:#ffcb5c; }
+  .mark-todo{ background:rgba(230,84,79,0.2); color:#ff9490; }
+
+  /* ---------- Tables ---------- */
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:15px; }
+  th{ text-align:left; color:var(--text-3); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.05em; padding:9px 10px; border-bottom:1px solid var(--border-soft); font-family:"Courier New",monospace; }
+  td{ padding:10px 10px; border-bottom:1px solid var(--border-soft); color:var(--text-2); }
+  tr.row-click{ cursor:pointer; }
+  tr.row-click:hover td{ background:rgba(255,255,255,0.04); color:var(--text-1); }
+
+  /* ---------- Bar charts (shared) ---------- */
+  .bar-row{ display:flex; align-items:center; gap:10px; margin:8px 0; }
+  .bar-row .label{ flex:0 0 170px; font-size:13.5px; color:var(--text-2); text-align:right; }
+  .bar-row .track{ flex:1; height:14px; border-radius:7px; background:rgba(255,255,255,0.05); overflow:hidden; }
+  .bar-row .fill{ height:100%; border-radius:7px; }
+  .bar-row .val{ flex:0 0 54px; font-size:13px; color:var(--text-3); text-align:left; }
+  .chart-legend{ display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:var(--text-2); }
+  .chart-legend .item{ display:flex; align-items:center; gap:6px; }
+  .chart-legend .swatch{ width:10px; height:10px; border-radius:3px; }
+
+  .tooltip{
+    position:absolute; pointer-events:none; z-index:50; padding:8px 12px; border-radius:9px;
+    background:rgba(10,14,24,0.96); border:1px solid var(--border); font-size:13px; color:var(--text-1);
+    box-shadow:0 10px 26px rgba(0,0,0,0.5); opacity:0; transition:opacity .12s ease; white-space:nowrap;
+  }
+
+  /* ---------- Trace box ---------- */
+  .trace-box p{ margin-bottom:4px; }
+  .trace-row{ display:flex; gap:10px; margin-top:10px; }
+  .trace-row input{ flex:1; }
+  .trace-msg{ font-size:13.5px; color:var(--text-3); margin-top:9px; min-height:18px; }
+  .trace-msg.err{ color:var(--critical); }
+
+  /* ---------- API list ---------- */
+  .api-list{ display:flex; flex-direction:column; gap:10px; }
+  .api-row{ display:grid; grid-template-columns:76px 230px 1fr auto 18px; gap:14px; align-items:center; padding:15px 18px; text-decoration:none; color:inherit; }
+  @media (max-width:820px){ .api-row{ grid-template-columns:1fr; } .api-row .api-roles{ order:5; } }
+  .method-tag{ font-size:12px; font-weight:800; padding:3px 8px; border-radius:6px; text-align:center; font-family:"Courier New",monospace; }
+  .method-get{ background:rgba(57,135,229,0.2); color:var(--blue-soft); }
+  .method-post{ background:rgba(217,147,44,0.22); color:var(--amber); }
+  .api-path{ font-family:"Courier New",monospace; font-weight:700; font-size:15px; }
+  .api-desc{ color:var(--text-2); font-size:14.5px; }
+  .api-roles{ font-size:12px; color:var(--text-3); }
+  .api-arrow{ color:var(--text-3); }
+
+  .endpoint-title{ display:flex; align-items:center; gap:12px; margin:8px 0 10px; }
+  .endpoint-path{ font-size:20px; font-weight:700; }
+  .roles-line{ font-size:14px; }
+
+  .param-form{ display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px; }
+  .field{ display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--text-2); }
+  .field label{ font-family:"Courier New",monospace; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-3); }
+
+  pre.raw-json{ background:rgba(0,0,0,0.4); padding:14px 16px; border-radius:10px; font-family:"Courier New", Courier, monospace; font-size:13px; overflow-x:auto; color:#bcd4f0; white-space:pre; margin-top:12px; }
+  .status-line{ display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:14px; }
+  .status-code{ font-family:"Courier New",monospace; font-weight:700; padding:3px 9px; border-radius:6px; }
+  .status-200{ background:rgba(31,191,92,0.18); color:#5be08c; }
+  .status-201{ background:rgba(57,135,229,0.18); color:var(--blue-soft); }
+  .status-404{ background:rgba(230,84,79,0.18); color:#ff9490; }
+
+  .hidden{ display:none !important; }
+
+  footer{ padding:40px 0 70px; text-align:center; }
+  footer p{ font-size:13px; color:var(--text-3); max-width:600px; margin:6px auto; }
+
+  ::selection{ background:rgba(57,135,229,0.35); }
+
+  @media (max-width:880px){
+    .sidebar{ position:fixed; left:0; top:0; transform:translateX(-100%); transition:transform .22s ease; box-shadow:20px 0 50px rgba(0,0,0,0.4); }
+    .sidebar.open{ transform:translateX(0); }
+    .sidebar-overlay.show{ display:block; }
+    .menu-toggle{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:9px; background:var(--panel); border:1px solid var(--border); color:var(--text-1); cursor:pointer; font-size:18px; }
+    .topbar-search input{ width:150px; }
+    #content{ padding:24px 18px 70px; }
+  }
+  @media (prefers-reduced-motion: reduce){ #stars{ animation:none !important; } }
+</style>
+
+<div class="bg-wash"></div>
+<canvas id="stars"></canvas>
+
+<div class="app-shell">
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">Early Warning Platform<small>Student attrition risk</small></div>
+    </div>
+    <nav id="sidebar-nav"></nav>
+  </aside>
+
+  <div class="main-col">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <button class="menu-toggle" id="menu-toggle" aria-label="Open menu">&#9776;</button>
+        <div class="breadcrumb" id="breadcrumb"></div>
+      </div>
+      <div class="topbar-search">
+        <input type="text" id="global-search" placeholder="Trace student ID…" />
+        <button class="btn" id="global-search-btn">Go</button>
+      </div>
+    </header>
+    <main id="content"></main>
+    <footer>
+      <p><strong style="color:var(--text-2);">Development of an Intelligent Web-Based Early Warning Platform for Predicting Student Attrition Risks</strong> - MSc group project, University of the West of Scotland.</p>
+      <p>Built on the Open University Learning Analytics Dataset (Kuzilek, Hlosta &amp; Zdrahal, 2017), CC BY 4.0. Risk scores are generated by an XGBoost classifier trained for this prototype and are illustrative, not a deployed institutional system.</p>
+    </footer>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script id="bundle-data" type="application/json">{"model_metrics": {"candidate_comparison": [{"model": "logistic_regression", "auc_roc": 0.934, "auc_pr": 0.8357, "f1": 0.7921, "brier_score": 0.1046}, {"model": "random_forest", "auc_roc": 0.9374, "auc_pr": 0.8532, "f1": 0.7949, "brier_score": 0.098}, {"model": "xgboost", "auc_roc": 0.9441, "auc_pr": 0.87, "f1": 0.791, "brier_score": 0.0885}], "selected_model": "xgboost", "test_set_uncalibrated": {"model": "xgboost_uncalibrated", "auc_roc": 0.9427, "auc_pr": 0.8662, "f1": 0.7871, "brier_score": 0.0891}, "test_set_calibrated": {"model": "xgboost_calibrated", "auc_roc": 0.9441, "auc_pr": 0.8689, "f1": 0.7814, "brier_score": 0.091}, "reliability_curve": [{"bin_center": 0.05, "predicted_mean": 0.034, "observed_rate": 0.014, "n": 3530}, {"bin_center": 0.15, "predicted_mean": 0.149, "observed_rate": 0.285, "n": 298}, {"bin_center": 0.25, "predicted_mean": 0.252, "observed_rate": 0.356, "n": 236}, {"bin_center": 0.35, "predicted_mean": 0.349, "observed_rate": 0.5, "n": 222}, {"bin_center": 0.45, "predicted_mean": 0.45, "observed_rate": 0.544, "n": 226}, {"bin_center": 0.55, "predicted_mean": 0.551, "observed_rate": 0.583, "n": 206}, {"bin_center": 0.65, "predicted_mean": 0.653, "observed_rate": 0.636, "n": 280}, {"bin_center": 0.75, "predicted_mean": 0.753, "observed_rate": 0.695, "n": 377}, {"bin_center": 0.85, "predicted_mean": 0.856, "observed_rate": 0.823, "n": 559}, {"bin_center": 0.95, "predicted_mean": 0.925, "observed_rate": 0.954, "n": 585}], "n_train": 19555, "n_val": 6519, "n_test": 6519, "withdrawal_rate_overall": 0.3116}, "feature_importance": [{"feature": "submission_rate", "importance": 0.2905}, {"feature": "active_days", "importance": 0.0839}, {"feature": "code_module_GGG", "importance": 0.0509}, {"feature": "early_active_days", "importance": 0.0304}, {"feature": "code_module_CCC", "importance": 0.0256}, {"feature": "code_module_BBB", "importance": 0.0197}, {"feature": "total_clicks", "importance": 0.0185}, {"feature": "studied_credits", "importance": 0.0179}, {"feature": "region_Wales", "importance": 0.0176}, {"feature": "region_Scotland", "importance": 0.0162}, {"feature": "code_module_DDD", "importance": 0.0156}, {"feature": "pct_late", "importance": 0.0139}, {"feature": "num_of_prev_attempts", "importance": 0.0132}, {"feature": "mean_score", "importance": 0.0117}, {"feature": "region_Ireland", "importance": 0.0117}], "fairness_audit": {"gender": [{"group": "F", "n": 2975, "true_positive_rate": 0.783, "false_positive_rate": 0.078, "mean_risk_score": 0.295}, {"group": "M", "n": 3544, "true_positive_rate": 0.771, "false_positive_rate": 0.111, "mean_risk_score": 0.318}], "age_band": [{"group": "0-35", "n": 4553, "true_positive_rate": 0.777, "false_positive_rate": 0.101, "mean_risk_score": 0.316}, {"group": "35-55", "n": 1924, "true_positive_rate": 0.776, "false_positive_rate": 0.084, "mean_risk_score": 0.289}, {"group": "55<=", "n": 42, "true_positive_rate": 0.7, "false_positive_rate": 0.062, "mean_risk_score": 0.232}], "highest_education": [{"group": "A Level or Equivalent", "n": 2796, "true_positive_rate": 0.775, "false_positive_rate": 0.091, "mean_risk_score": 0.292}, {"group": "HE Qualification", "n": 939, "true_positive_rate": 0.786, "false_positive_rate": 0.067, "mean_risk_score": 0.265}, {"group": "Lower Than A Level", "n": 2676, "true_positive_rate": 0.778, "false_positive_rate": 0.115, "mean_risk_score": 0.341}, {"group": "No Formal quals", "n": 56, "true_positive_rate": 0.652, "false_positive_rate": 0.091, "mean_risk_score": 0.315}, {"group": "Post Graduate Qualification", "n": 52, "true_positive_rate": 0.778, "false_positive_rate": 0.0, "mean_risk_score": 0.158}]}, "bias_audit": {"gender": [{"gender": "F", "withdrawal_rate_pct": 30.48, "n": 14718}, {"gender": "M", "withdrawal_rate_pct": 31.72, "n": 17875}], "age_band": [{"age_band": "0-35", "withdrawal_rate_pct": 32.17, "n": 22944}, {"age_band": "35-55", "withdrawal_rate_pct": 28.85, "n": 9433}, {"age_band": "55<=", "withdrawal_rate_pct": 25.0, "n": 216}], "disability": [{"disability": "N", "withdrawal_rate_pct": 30.28, "n": 29429}, {"disability": "Y", "withdrawal_rate_pct": 39.35, "n": 3164}], "highest_education": [{"highest_education": "A Level or Equivalent", "withdrawal_rate_pct": 28.69, "n": 14045}, {"highest_education": "HE Qualification", "withdrawal_rate_pct": 27.12, "n": 4730}, {"highest_education": "Lower Than A Level", "withdrawal_rate_pct": 35.11, "n": 13158}, {"highest_education": "No Formal quals", "withdrawal_rate_pct": 42.94, "n": 347}, {"highest_education": "Post Graduate Qualification", "withdrawal_rate_pct": 23.64, "n": 313}], "imd_band": [{"imd_band": "0-10%", "withdrawal_rate_pct": 37.18, "n": 3311}, {"imd_band": "10-20", "withdrawal_rate_pct": 35.44, "n": 3516}, {"imd_band": "20-30%", "withdrawal_rate_pct": 36.15, "n": 3654}, {"imd_band": "30-40%", "withdrawal_rate_pct": 30.94, "n": 3539}, {"imd_band": "40-50%", "withdrawal_rate_pct": 32.0, "n": 3256}, {"imd_band": "50-60%", "withdrawal_rate_pct": 28.78, "n": 3124}, {"imd_band": "60-70%", "withdrawal_rate_pct": 29.57, "n": 2905}, {"imd_band": "70-80%", "withdrawal_rate_pct": 27.68, "n": 2879}, {"imd_band": "80-90%", "withdrawal_rate_pct": 28.02, "n": 2762}, {"imd_band": "90-100%", "withdrawal_rate_pct": 25.87, "n": 2536}, {"imd_band": "Unknown", "withdrawal_rate_pct": 21.24, "n": 1111}]}, "quality_checks": {"unique_student_module_presentation": true, "no_null_target": true, "score_range_valid": true, "class_balance": {"0": 0.6884, "1": 0.3116}, "n_rows": 32593, "n_features": 28}, "data_quality_summary": [{"table": "courses", "rows": 22, "n_columns": 3, "n_cols_with_missing": 0, "duplicate_rows": 0}, {"table": "assessments", "rows": 206, "n_columns": 6, "n_cols_with_missing": 1, "duplicate_rows": 0}, {"table": "studentInfo", "rows": 32593, "n_columns": 12, "n_cols_with_missing": 1, "duplicate_rows": 0}, {"table": "studentRegistration", "rows": 32593, "n_columns": 5, "n_cols_with_missing": 2, "duplicate_rows": 0}, {"table": "studentAssessment", "rows": 173912, "n_columns": 5, "n_cols_with_missing": 1, "duplicate_rows": 0}, {"table": "studentVle", "rows": 10655280, "n_columns": 6, "n_cols_with_missing": 0, "duplicate_rows": 787170}, {"table": "vle", "rows": 6364, "n_columns": 6, "n_cols_with_missing": 2, "duplicate_rows": 0}], "cohort_overview": [{"code_module": "BBB", "n_students": 94, "mean_risk": 0.309, "pct_high_risk": 26.6, "withdrawal_rate_historic": 34.0}, {"code_module": "DDD", "n_students": 90, "mean_risk": 0.352, "pct_high_risk": 33.3, "withdrawal_rate_historic": 38.9}, {"code_module": "FFF", "n_students": 85, "mean_risk": 0.288, "pct_high_risk": 25.9, "withdrawal_rate_historic": 27.1}, {"code_module": "CCC", "n_students": 49, "mean_risk": 0.45, "pct_high_risk": 49.0, "withdrawal_rate_historic": 42.9}, {"code_module": "GGG", "n_students": 41, "mean_risk": 0.163, "pct_high_risk": 7.3, "withdrawal_rate_historic": 17.1}, {"code_module": "EEE", "n_students": 38, "mean_risk": 0.346, "pct_high_risk": 31.6, "withdrawal_rate_historic": 31.6}, {"code_module": "AAA", "n_students": 3, "mean_risk": 0.281, "pct_high_risk": 33.3, "withdrawal_rate_historic": 33.3}], "students": [{"id_student": 627690, "code_module": "DDD", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9446, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 686877, "code_module": "EEE", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 150, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9433, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 681960, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 210, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9429, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 619887, "code_module": "EEE", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 180, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9427, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2422258, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9425, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 489990, "code_module": "CCC", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 150, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9416, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 39208, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9407, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 694001, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 180, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9398, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 416426, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9392, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2128283, "code_module": "EEE", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9369, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 572186, "code_module": "EEE", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9344, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 497898, "code_module": "DDD", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 145, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9342, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 565474, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9312, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 689952, "code_module": "BBB", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9309, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 606719, "code_module": "DDD", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "HE Qualification", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9303, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 493365, "code_module": "DDD", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Western Region", "num_of_prev_attempts": 1, "studied_credits": 180, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9292, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 642731, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9269, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 542062, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9238, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 611988, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.923, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 521073, "code_module": "FFF", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 2, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9215, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 425393, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "West Midlands Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9201, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 67685, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 180, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 10, "active_days": 5, "early_clicks": 10, "risk_score": 0.9192, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 418502, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9191, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 678262, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 107, "active_days": 9, "early_clicks": 107, "risk_score": 0.919, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2424697, "code_module": "CCC", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 233, "active_days": 11, "early_clicks": 233, "risk_score": 0.9148, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 628765, "code_module": "BBB", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9126, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 554920, "code_module": "BBB", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9116, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 567145, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.91, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 561932, "code_module": "BBB", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.909, "true_label": 0, "final_result": "Fail"}, {"id_student": 532988, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9076, "true_label": 0, "final_result": "Fail"}, {"id_student": 2686074, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 150, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 34, "active_days": 6, "early_clicks": 34, "risk_score": 0.9055, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 577474, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.9046, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 330952, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 270, "submission_rate": 0.1, "mean_score": 56.0, "total_clicks": 80, "active_days": 10, "early_clicks": 50, "risk_score": 0.9025, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 651963, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 1, "active_days": 1, "early_clicks": 1, "risk_score": 0.9001, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 558212, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8998, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 620791, "code_module": "BBB", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8953, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 649686, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.895, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 688881, "code_module": "FFF", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 240, "submission_rate": 0.15, "mean_score": 69.0, "total_clicks": 689, "active_days": 40, "early_clicks": 477, "risk_score": 0.8923, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 132191, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 79, "active_days": 14, "early_clicks": 41, "risk_score": 0.8913, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 679325, "code_module": "CCC", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 2, "active_days": 1, "early_clicks": 2, "risk_score": 0.8899, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 599430, "code_module": "BBB", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8885, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 568572, "code_module": "GGG", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8878, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 429158, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 1, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8877, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 53709, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.54, "mean_score": 80.3, "total_clicks": 1735, "active_days": 52, "early_clicks": 767, "risk_score": 0.8867, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 647824, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 7, "active_days": 4, "early_clicks": 7, "risk_score": 0.886, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 85304, "code_module": "DDD", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 23, "active_days": 1, "early_clicks": 23, "risk_score": 0.8854, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 564712, "code_module": "DDD", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.14, "mean_score": 56.0, "total_clicks": 569, "active_days": 27, "early_clicks": 557, "risk_score": 0.8828, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 251916, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 46, "active_days": 3, "early_clicks": 46, "risk_score": 0.8791, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 543976, "code_module": "DDD", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.29, "mean_score": 73.0, "total_clicks": 1099, "active_days": 83, "early_clicks": 765, "risk_score": 0.8777, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 595234, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 5, "active_days": 2, "early_clicks": 5, "risk_score": 0.8763, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 576417, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.872, "true_label": 0, "final_result": "Fail"}, {"id_student": 124711, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "55<=", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.1, "mean_score": 44.0, "total_clicks": 196, "active_days": 17, "early_clicks": 189, "risk_score": 0.8717, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2443165, "code_module": "EEE", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 179, "active_days": 8, "early_clicks": 179, "risk_score": 0.8712, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 648576, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 1, "active_days": 1, "early_clicks": 1, "risk_score": 0.8703, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 50263, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.2, "mean_score": 43.0, "total_clicks": 425, "active_days": 31, "early_clicks": 359, "risk_score": 0.8701, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 33600, "code_module": "FFF", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 150, "submission_rate": 0.08, "mean_score": 84.0, "total_clicks": 481, "active_days": 21, "early_clicks": 481, "risk_score": 0.8652, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 478326, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 240, "submission_rate": 0.29, "mean_score": 70.0, "total_clicks": 133, "active_days": 23, "early_clicks": 108, "risk_score": 0.8646, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 345737, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8622, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2681277, "code_module": "EEE", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 170, "submission_rate": 0.2, "mean_score": 94.0, "total_clicks": 808, "active_days": 33, "early_clicks": 599, "risk_score": 0.858, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2579683, "code_module": "DDD", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 96, "active_days": 8, "early_clicks": 95, "risk_score": 0.8502, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 571365, "code_module": "CCC", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 24, "active_days": 2, "early_clicks": 24, "risk_score": 0.8493, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 633995, "code_module": "EEE", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 13, "active_days": 2, "early_clicks": 11, "risk_score": 0.849, "true_label": 0, "final_result": "Fail"}, {"id_student": 594851, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8463, "true_label": 0, "final_result": "Fail"}, {"id_student": 383388, "code_module": "FFF", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Ireland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 259, "active_days": 8, "early_clicks": 259, "risk_score": 0.8449, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2367058, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.3, "mean_score": 94.7, "total_clicks": 323, "active_days": 30, "early_clicks": 137, "risk_score": 0.8406, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 363711, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8359, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 541995, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 116, "active_days": 3, "early_clicks": 116, "risk_score": 0.8342, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 623326, "code_module": "FFF", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 167, "active_days": 13, "early_clicks": 167, "risk_score": 0.8262, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 466599, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 123, "active_days": 8, "early_clicks": 42, "risk_score": 0.8217, "true_label": 0, "final_result": "Fail"}, {"id_student": 2425333, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 0, "active_days": 0, "early_clicks": 0, "risk_score": 0.8107, "true_label": 0, "final_result": "Fail"}, {"id_student": 588824, "code_module": "CCC", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.1, "mean_score": 100.0, "total_clicks": 813, "active_days": 24, "early_clicks": 588, "risk_score": 0.8077, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2609768, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 41, "active_days": 2, "early_clicks": 41, "risk_score": 0.8019, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 530762, "code_module": "DDD", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 57, "active_days": 4, "early_clicks": 52, "risk_score": 0.8012, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 320153, "code_module": "CCC", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.3, "mean_score": 84.0, "total_clicks": 695, "active_days": 21, "early_clicks": 476, "risk_score": 0.7981, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2366070, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 240, "submission_rate": 0.25, "mean_score": 75.3, "total_clicks": 354, "active_days": 27, "early_clicks": 220, "risk_score": 0.7975, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 592259, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Yorkshire Region", "num_of_prev_attempts": 1, "studied_credits": 90, "submission_rate": 0.1, "mean_score": 44.0, "total_clicks": 95, "active_days": 10, "early_clicks": 73, "risk_score": 0.7831, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 574580, "code_module": "EEE", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Region", "num_of_prev_attempts": 1, "studied_credits": 150, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 273, "active_days": 11, "early_clicks": 214, "risk_score": 0.7802, "true_label": 0, "final_result": "Fail"}, {"id_student": 574860, "code_module": "DDD", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 19, "active_days": 2, "early_clicks": 19, "risk_score": 0.78, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 624743, "code_module": "BBB", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 29, "active_days": 2, "early_clicks": 29, "risk_score": 0.7786, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 442442, "code_module": "AAA", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.33, "mean_score": 40.5, "total_clicks": 1009, "active_days": 49, "early_clicks": 553, "risk_score": 0.7782, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2637000, "code_module": "EEE", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.6, "mean_score": 59.3, "total_clicks": 712, "active_days": 51, "early_clicks": 178, "risk_score": 0.0692, "true_label": 0, "final_result": "Fail"}, {"id_student": 606788, "code_module": "DDD", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 1.0, "mean_score": 88.3, "total_clicks": 1403, "active_days": 115, "early_clicks": 296, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 680591, "code_module": "BBB", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.5, "mean_score": 89.0, "total_clicks": 495, "active_days": 43, "early_clicks": 150, "risk_score": 0.3704, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 633949, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.83, "mean_score": 84.2, "total_clicks": 1350, "active_days": 70, "early_clicks": 112, "risk_score": 0.0312, "true_label": 0, "final_result": "Distinction"}, {"id_student": 693294, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 1.0, "mean_score": 58.0, "total_clicks": 515, "active_days": 74, "early_clicks": 126, "risk_score": 0.0303, "true_label": 0, "final_result": "Fail"}, {"id_student": 1100639, "code_module": "CCC", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.3, "mean_score": 69.7, "total_clicks": 690, "active_days": 60, "early_clicks": 209, "risk_score": 0.6254, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 689346, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.43, "mean_score": 46.7, "total_clicks": 166, "active_days": 19, "early_clicks": 87, "risk_score": 0.7425, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 542536, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.92, "mean_score": 74.4, "total_clicks": 2882, "active_days": 84, "early_clicks": 435, "risk_score": 0.0303, "true_label": 0, "final_result": "Pass"}, {"id_student": 521957, "code_module": "BBB", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Ireland", "num_of_prev_attempts": 3, "studied_credits": 120, "submission_rate": 0.58, "mean_score": 62.1, "total_clicks": 94, "active_days": 11, "early_clicks": 2, "risk_score": 0.0449, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 587283, "code_module": "GGG", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.1, "mean_score": 58.0, "total_clicks": 89, "active_days": 8, "early_clicks": 20, "risk_score": 0.0715, "true_label": 0, "final_result": "Fail"}, {"id_student": 431136, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.57, "mean_score": 24.8, "total_clicks": 604, "active_days": 42, "early_clicks": 119, "risk_score": 0.1566, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 633747, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 85.4, "total_clicks": 565, "active_days": 17, "early_clicks": 36, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 2006283, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 85.1, "total_clicks": 214, "active_days": 16, "early_clicks": 3, "risk_score": 0.0303, "true_label": 0, "final_result": "Pass"}, {"id_student": 604358, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.83, "mean_score": 84.0, "total_clicks": 1456, "active_days": 80, "early_clicks": 188, "risk_score": 0.0308, "true_label": 0, "final_result": "Pass"}, {"id_student": 653633, "code_module": "BBB", "code_presentation": "2014J", "gender": "M", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.5, "mean_score": 72.7, "total_clicks": 1230, "active_days": 47, "early_clicks": 271, "risk_score": 0.2858, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 502207, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Region", "num_of_prev_attempts": 2, "studied_credits": 120, "submission_rate": 0.71, "mean_score": 48.2, "total_clicks": 389, "active_days": 59, "early_clicks": 71, "risk_score": 0.0786, "true_label": 0, "final_result": "Fail"}, {"id_student": 688008, "code_module": "FFF", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.92, "mean_score": 93.3, "total_clicks": 3729, "active_days": 51, "early_clicks": 610, "risk_score": 0.0302, "true_label": 0, "final_result": "Pass"}, {"id_student": 603055, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.83, "mean_score": 73.4, "total_clicks": 312, "active_days": 27, "early_clicks": 35, "risk_score": 0.0309, "true_label": 0, "final_result": "Pass"}, {"id_student": 2617635, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.1, "mean_score": 60.0, "total_clicks": 63, "active_days": 6, "early_clicks": 62, "risk_score": 0.7385, "true_label": 0, "final_result": "Fail"}, {"id_student": 382160, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 180, "submission_rate": 0.15, "mean_score": 68.0, "total_clicks": 284, "active_days": 16, "early_clicks": 221, "risk_score": 0.6257, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 694616, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.5, "mean_score": 47.7, "total_clicks": 736, "active_days": 28, "early_clicks": 209, "risk_score": 0.2549, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 152867, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 2, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 28, "active_days": 3, "early_clicks": 28, "risk_score": 0.6926, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 691501, "code_module": "GGG", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.7, "mean_score": 79.3, "total_clicks": 853, "active_days": 64, "early_clicks": 213, "risk_score": 0.0331, "true_label": 0, "final_result": "Distinction"}, {"id_student": 581563, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.15, "mean_score": 64.0, "total_clicks": 327, "active_days": 40, "early_clicks": 165, "risk_score": 0.7063, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 1847481, "code_module": "DDD", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "HE Qualification", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.86, "mean_score": 80.2, "total_clicks": 1527, "active_days": 60, "early_clicks": 719, "risk_score": 0.0389, "true_label": 0, "final_result": "Pass"}, {"id_student": 573593, "code_module": "EEE", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.8, "mean_score": 74.8, "total_clicks": 2073, "active_days": 101, "early_clicks": 183, "risk_score": 0.0309, "true_label": 0, "final_result": "Pass"}, {"id_student": 617014, "code_module": "FFF", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.92, "mean_score": 78.9, "total_clicks": 2394, "active_days": 74, "early_clicks": 296, "risk_score": 0.0305, "true_label": 0, "final_result": "Pass"}, {"id_student": 2444088, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.83, "mean_score": 91.0, "total_clicks": 1620, "active_days": 114, "early_clicks": 416, "risk_score": 0.0308, "true_label": 0, "final_result": "Distinction"}, {"id_student": 578199, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.92, "mean_score": 70.6, "total_clicks": 3393, "active_days": 72, "early_clicks": 920, "risk_score": 0.0304, "true_label": 0, "final_result": "Pass"}, {"id_student": 535778, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.25, "mean_score": 87.7, "total_clicks": 41, "active_days": 5, "early_clicks": 18, "risk_score": 0.3599, "true_label": 0, "final_result": "Fail"}, {"id_student": 374739, "code_module": "EEE", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.8, "mean_score": 52.0, "total_clicks": 1722, "active_days": 105, "early_clicks": 353, "risk_score": 0.0314, "true_label": 0, "final_result": "Pass"}, {"id_student": 686462, "code_module": "EEE", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 97, "active_days": 5, "early_clicks": 97, "risk_score": 0.5031, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 649261, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.57, "mean_score": 78.8, "total_clicks": 630, "active_days": 52, "early_clicks": 330, "risk_score": 0.7002, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 691006, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.5, "mean_score": 75.0, "total_clicks": 298, "active_days": 35, "early_clicks": 201, "risk_score": 0.358, "true_label": 0, "final_result": "Fail"}, {"id_student": 2023366, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.92, "mean_score": 94.0, "total_clicks": 1529, "active_days": 112, "early_clicks": 375, "risk_score": 0.0302, "true_label": 0, "final_result": "Pass"}, {"id_student": 630178, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.71, "mean_score": 80.0, "total_clicks": 487, "active_days": 57, "early_clicks": 150, "risk_score": 0.1127, "true_label": 0, "final_result": "Pass"}, {"id_student": 516057, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 91.3, "total_clicks": 760, "active_days": 72, "early_clicks": 241, "risk_score": 0.0304, "true_label": 0, "final_result": "Pass"}, {"id_student": 585048, "code_module": "BBB", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.92, "mean_score": 85.3, "total_clicks": 768, "active_days": 79, "early_clicks": 91, "risk_score": 0.0305, "true_label": 0, "final_result": "Pass"}, {"id_student": 503491, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 1, "studied_credits": 120, "submission_rate": 0.92, "mean_score": 75.7, "total_clicks": 944, "active_days": 67, "early_clicks": 221, "risk_score": 0.0302, "true_label": 0, "final_result": "Pass"}, {"id_student": 628516, "code_module": "BBB", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 80.5, "total_clicks": 248, "active_days": 30, "early_clicks": 76, "risk_score": 0.0309, "true_label": 0, "final_result": "Distinction"}, {"id_student": 2391004, "code_module": "EEE", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.8, "mean_score": 85.2, "total_clicks": 739, "active_days": 29, "early_clicks": 199, "risk_score": 0.0316, "true_label": 0, "final_result": "Pass"}, {"id_student": 630924, "code_module": "FFF", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 83.4, "total_clicks": 2704, "active_days": 89, "early_clicks": 433, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 599452, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "North Region", "num_of_prev_attempts": 1, "studied_credits": 90, "submission_rate": 0.9, "mean_score": 79.0, "total_clicks": 479, "active_days": 36, "early_clicks": 211, "risk_score": 0.0306, "true_label": 0, "final_result": "Pass"}, {"id_student": 630613, "code_module": "CCC", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.8, "mean_score": 84.4, "total_clicks": 2823, "active_days": 111, "early_clicks": 476, "risk_score": 0.032, "true_label": 0, "final_result": "Pass"}, {"id_student": 540155, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.15, "mean_score": 68.0, "total_clicks": 1343, "active_days": 42, "early_clicks": 784, "risk_score": 0.7065, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 511199, "code_module": "EEE", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.8, "mean_score": 62.8, "total_clicks": 778, "active_days": 34, "early_clicks": 314, "risk_score": 0.0353, "true_label": 0, "final_result": "Fail"}, {"id_student": 627843, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.2, "mean_score": 85.0, "total_clicks": 190, "active_days": 20, "early_clicks": 73, "risk_score": 0.2474, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 559452, "code_module": "BBB", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.83, "mean_score": 93.4, "total_clicks": 370, "active_days": 27, "early_clicks": 74, "risk_score": 0.0323, "true_label": 0, "final_result": "Distinction"}, {"id_student": 180974, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 75.9, "total_clicks": 4505, "active_days": 176, "early_clicks": 985, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 347365, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.14, "mean_score": 48.0, "total_clicks": 247, "active_days": 13, "early_clicks": 231, "risk_score": 0.4612, "true_label": 0, "final_result": "Fail"}, {"id_student": 601184, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.23, "mean_score": 62.0, "total_clicks": 529, "active_days": 27, "early_clicks": 200, "risk_score": 0.1362, "true_label": 0, "final_result": "Fail"}, {"id_student": 623804, "code_module": "GGG", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.7, "mean_score": 78.7, "total_clicks": 285, "active_days": 19, "early_clicks": 69, "risk_score": 0.0413, "true_label": 0, "final_result": "Pass"}, {"id_student": 549078, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.83, "mean_score": 45.6, "total_clicks": 249, "active_days": 38, "early_clicks": 46, "risk_score": 0.035, "true_label": 0, "final_result": "Fail"}, {"id_student": 555619, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.15, "mean_score": 60.0, "total_clicks": 1005, "active_days": 32, "early_clicks": 624, "risk_score": 0.4007, "true_label": 0, "final_result": "Fail"}, {"id_student": 588314, "code_module": "GGG", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 68.8, "total_clicks": 216, "active_days": 10, "early_clicks": 25, "risk_score": 0.0303, "true_label": 0, "final_result": "Pass"}, {"id_student": 640848, "code_module": "FFF", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.92, "mean_score": 73.6, "total_clicks": 2433, "active_days": 55, "early_clicks": 449, "risk_score": 0.0302, "true_label": 0, "final_result": "Pass"}, {"id_student": 625835, "code_module": "GGG", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 79, "active_days": 11, "early_clicks": 71, "risk_score": 0.5365, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 632074, "code_module": "EEE", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.8, "mean_score": 83.0, "total_clicks": 1774, "active_days": 80, "early_clicks": 391, "risk_score": 0.0317, "true_label": 0, "final_result": "Pass"}, {"id_student": 368439, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 22, "active_days": 2, "early_clicks": 22, "risk_score": 0.6175, "true_label": 0, "final_result": "Fail"}, {"id_student": 679967, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Ireland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.83, "mean_score": 75.2, "total_clicks": 1294, "active_days": 70, "early_clicks": 114, "risk_score": 0.0306, "true_label": 0, "final_result": "Pass"}, {"id_student": 446628, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.1, "mean_score": 30.0, "total_clicks": 85, "active_days": 13, "early_clicks": 83, "risk_score": 0.7265, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 572976, "code_module": "DDD", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.86, "mean_score": 58.2, "total_clicks": 463, "active_days": 59, "early_clicks": 89, "risk_score": 0.0335, "true_label": 0, "final_result": "Pass"}, {"id_student": 540800, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.92, "mean_score": 77.4, "total_clicks": 5269, "active_days": 151, "early_clicks": 1073, "risk_score": 0.0306, "true_label": 0, "final_result": "Pass"}, {"id_student": 590812, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.17, "mean_score": 49.0, "total_clicks": 311, "active_days": 21, "early_clicks": 243, "risk_score": 0.4169, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 2375144, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.25, "mean_score": 87.3, "total_clicks": 2108, "active_days": 48, "early_clicks": 1587, "risk_score": 0.6832, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 586407, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 90, "submission_rate": 0.08, "mean_score": 75.0, "total_clicks": 122, "active_days": 10, "early_clicks": 122, "risk_score": 0.6752, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 608292, "code_module": "GGG", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.8, "mean_score": 77.6, "total_clicks": 1077, "active_days": 80, "early_clicks": 146, "risk_score": 0.0311, "true_label": 0, "final_result": "Pass"}, {"id_student": 593695, "code_module": "BBB", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "Ireland", "num_of_prev_attempts": 0, "studied_credits": 75, "submission_rate": 0.83, "mean_score": 76.0, "total_clicks": 291, "active_days": 29, "early_clicks": 83, "risk_score": 0.0321, "true_label": 0, "final_result": "Pass"}, {"id_student": 608907, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "South Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 0.7, "mean_score": 86.4, "total_clicks": 478, "active_days": 19, "early_clicks": 20, "risk_score": 0.0361, "true_label": 0, "final_result": "Pass"}, {"id_student": 653550, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "55<=", "highest_education": "HE Qualification", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 95.3, "total_clicks": 1420, "active_days": 115, "early_clicks": 456, "risk_score": 0.0302, "true_label": 0, "final_result": "Distinction"}, {"id_student": 344474, "code_module": "DDD", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 75, "submission_rate": 0.64, "mean_score": 54.3, "total_clicks": 742, "active_days": 48, "early_clicks": 134, "risk_score": 0.0713, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 1038161, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.8, "mean_score": 65.4, "total_clicks": 561, "active_days": 33, "early_clicks": 201, "risk_score": 0.0328, "true_label": 0, "final_result": "Pass"}, {"id_student": 266558, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "Yorkshire Region", "num_of_prev_attempts": 1, "studied_credits": 30, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 13, "active_days": 2, "early_clicks": 0, "risk_score": 0.7656, "true_label": 0, "final_result": "Fail"}, {"id_student": 516318, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 1, "studied_credits": 120, "submission_rate": 0.14, "mean_score": 98.0, "total_clicks": 69, "active_days": 6, "early_clicks": 45, "risk_score": 0.5923, "true_label": 0, "final_result": "Fail"}, {"id_student": 675165, "code_module": "BBB", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "HE Qualification", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.17, "mean_score": 1.0, "total_clicks": 12, "active_days": 2, "early_clicks": 12, "risk_score": 0.4365, "true_label": 1, "final_result": "Withdrawn"}, {"id_student": 648898, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Ireland", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 1.0, "mean_score": 83.6, "total_clicks": 8208, "active_days": 198, "early_clicks": 2506, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 595515, "code_module": "EEE", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.0, "mean_score": 76.0, "total_clicks": 93, "active_days": 2, "early_clicks": 93, "risk_score": 0.7012, "true_label": 0, "final_result": "Fail"}, {"id_student": 499067, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.58, "mean_score": 68.3, "total_clicks": 363, "active_days": 29, "early_clicks": 202, "risk_score": 0.1554, "true_label": 0, "final_result": "Fail"}, {"id_student": 344098, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.7, "mean_score": 79.7, "total_clicks": 753, "active_days": 39, "early_clicks": 124, "risk_score": 0.0338, "true_label": 0, "final_result": "Pass"}, {"id_student": 680331, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.86, "mean_score": 51.8, "total_clicks": 131, "active_days": 22, "early_clicks": 10, "risk_score": 0.044, "true_label": 0, "final_result": "Fail"}, {"id_student": 259641, "code_module": "DDD", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 77.9, "total_clicks": 1617, "active_days": 85, "early_clicks": 471, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 1950923, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 78.9, "total_clicks": 2782, "active_days": 112, "early_clicks": 493, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 2458203, "code_module": "GGG", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 95.3, "total_clicks": 1243, "active_days": 138, "early_clicks": 342, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 644301, "code_module": "GGG", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 85.7, "total_clicks": 651, "active_days": 49, "early_clicks": 5, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 2488382, "code_module": "CCC", "code_presentation": "2014B", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 84.9, "total_clicks": 1133, "active_days": 43, "early_clicks": 302, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 600320, "code_module": "GGG", "code_presentation": "2014J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 1, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 78.7, "total_clicks": 695, "active_days": 49, "early_clicks": 69, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 556302, "code_module": "FFF", "code_presentation": "2013B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "Yorkshire Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 77.7, "total_clicks": 4003, "active_days": 203, "early_clicks": 647, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 689990, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 1.0, "mean_score": 85.4, "total_clicks": 1473, "active_days": 135, "early_clicks": 166, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 2343354, "code_module": "GGG", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 82.8, "total_clicks": 274, "active_days": 20, "early_clicks": 47, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 572769, "code_module": "FFF", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.92, "mean_score": 82.2, "total_clicks": 3986, "active_days": 169, "early_clicks": 877, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 592189, "code_module": "DDD", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 81.0, "total_clicks": 805, "active_days": 116, "early_clicks": 207, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 693302, "code_module": "CCC", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 90.2, "total_clicks": 1567, "active_days": 92, "early_clicks": 159, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 590340, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 70, "submission_rate": 1.0, "mean_score": 91.6, "total_clicks": 3352, "active_days": 163, "early_clicks": 906, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 535161, "code_module": "DDD", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 1, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 83.1, "total_clicks": 1028, "active_days": 77, "early_clicks": 159, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 586689, "code_module": "GGG", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "Lower Than A Level", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 79.1, "total_clicks": 901, "active_days": 44, "early_clicks": 10, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 447059, "code_module": "DDD", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 70.6, "total_clicks": 1220, "active_days": 107, "early_clicks": 346, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 593785, "code_module": "GGG", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 89.7, "total_clicks": 2062, "active_days": 80, "early_clicks": 396, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 576791, "code_module": "CCC", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "HE Qualification", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 94.9, "total_clicks": 2957, "active_days": 143, "early_clicks": 298, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 339379, "code_module": "BBB", "code_presentation": "2013B", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "East Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 94.3, "total_clicks": 412, "active_days": 58, "early_clicks": 122, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 138704, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 74.1, "total_clicks": 1298, "active_days": 69, "early_clicks": 273, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 585393, "code_module": "CCC", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "South West Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.9, "mean_score": 96.2, "total_clicks": 9775, "active_days": 239, "early_clicks": 1838, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 538863, "code_module": "DDD", "code_presentation": "2013J", "gender": "F", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Western Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 88.7, "total_clicks": 1253, "active_days": 106, "early_clicks": 341, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 675021, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 87.3, "total_clicks": 5703, "active_days": 105, "early_clicks": 725, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 634526, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Region", "num_of_prev_attempts": 1, "studied_credits": 90, "submission_rate": 0.92, "mean_score": 81.3, "total_clicks": 5534, "active_days": 154, "early_clicks": 503, "risk_score": 0.0301, "true_label": 0, "final_result": "Pass"}, {"id_student": 625651, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "South Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 84.7, "total_clicks": 727, "active_days": 63, "early_clicks": 226, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 618683, "code_module": "DDD", "code_presentation": "2014B", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 96.3, "total_clicks": 2336, "active_days": 134, "early_clicks": 626, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 627834, "code_module": "GGG", "code_presentation": "2014B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 91.8, "total_clicks": 499, "active_days": 27, "early_clicks": 6, "risk_score": 0.0301, "true_label": 0, "final_result": "Distinction"}, {"id_student": 2581779, "code_module": "DDD", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 92.9, "total_clicks": 1486, "active_days": 119, "early_clicks": 164, "risk_score": 0.03, "true_label": 0, "final_result": "Pass"}, {"id_student": 648274, "code_module": "GGG", "code_presentation": "2014J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 93.6, "total_clicks": 991, "active_days": 73, "early_clicks": 173, "risk_score": 0.03, "true_label": 0, "final_result": "Distinction"}, {"id_student": 530344, "code_module": "FFF", "code_presentation": "2013B", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 75, "submission_rate": 0.92, "mean_score": 79.8, "total_clicks": 6848, "active_days": 192, "early_clicks": 1291, "risk_score": 0.03, "true_label": 0, "final_result": "Pass"}, {"id_student": 678819, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 120, "submission_rate": 0.92, "mean_score": 89.9, "total_clicks": 4425, "active_days": 156, "early_clicks": 832, "risk_score": 0.03, "true_label": 0, "final_result": "Distinction"}, {"id_student": 588138, "code_module": "GGG", "code_presentation": "2013J", "gender": "F", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "South East Region", "num_of_prev_attempts": 0, "studied_credits": 30, "submission_rate": 0.9, "mean_score": 87.2, "total_clicks": 1195, "active_days": 103, "early_clicks": 202, "risk_score": 0.03, "true_label": 0, "final_result": "Pass"}, {"id_student": 629938, "code_module": "FFF", "code_presentation": "2014B", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "East Anglian Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 86.3, "total_clicks": 7459, "active_days": 154, "early_clicks": 753, "risk_score": 0.03, "true_label": 0, "final_result": "Pass"}, {"id_student": 610097, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "35-55", "highest_education": "HE Qualification", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 87.7, "total_clicks": 3726, "active_days": 147, "early_clicks": 552, "risk_score": 0.03, "true_label": 0, "final_result": "Pass"}, {"id_student": 557389, "code_module": "DDD", "code_presentation": "2014J", "gender": "F", "age_band": "0-35", "highest_education": "HE Qualification", "region": "Scotland", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 80.1, "total_clicks": 4295, "active_days": 215, "early_clicks": 1227, "risk_score": 0.03, "true_label": 0, "final_result": "Pass"}, {"id_student": 571862, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "A Level or Equivalent", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 88.3, "total_clicks": 4952, "active_days": 132, "early_clicks": 981, "risk_score": 0.03, "true_label": 0, "final_result": "Distinction"}, {"id_student": 646778, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "London Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 87.2, "total_clicks": 5140, "active_days": 140, "early_clicks": 1345, "risk_score": 0.03, "true_label": 0, "final_result": "Distinction"}, {"id_student": 29335, "code_module": "FFF", "code_presentation": "2013J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "West Midlands Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 92.1, "total_clicks": 8840, "active_days": 230, "early_clicks": 1475, "risk_score": 0.03, "true_label": 0, "final_result": "Distinction"}, {"id_student": 693162, "code_module": "FFF", "code_presentation": "2014J", "gender": "M", "age_band": "35-55", "highest_education": "A Level or Equivalent", "region": "Wales", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 0.92, "mean_score": 88.2, "total_clicks": 5989, "active_days": 170, "early_clicks": 1282, "risk_score": 0.03, "true_label": 0, "final_result": "Distinction"}, {"id_student": 693606, "code_module": "DDD", "code_presentation": "2014J", "gender": "M", "age_band": "0-35", "highest_education": "Lower Than A Level", "region": "North Region", "num_of_prev_attempts": 0, "studied_credits": 60, "submission_rate": 1.0, "mean_score": 85.7, "total_clicks": 4166, "active_days": 235, "early_clicks": 1160, "risk_score": 0.03, "true_label": 0, "final_result": "Pass"}], "dataset_totals": {"students_in_courses": 32593, "course_presentations": 22, "vle_pages": 6364, "vle_log_entries": 10655280, "assessments": 206, "assessment_entries": 173912}}</script>
+<script>
+const DATA = JSON.parse(document.getElementById('bundle-data').textContent);
+const tooltip = document.getElementById('tooltip');
+
+/* ================= Starfield ================= */
+(function starLayer(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], w, h, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  function resize(){
+    w = window.innerWidth; h = window.innerHeight;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    canvas.style.width = w+'px'; canvas.style.height = h+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    stars = Array.from({length:110}, () => ({
+      x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.3+0.4,
+      phase: Math.random()*Math.PI*2, drift:(Math.random()-0.5)*4,
+    }));
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let t = 0;
+  function frame(){
+    t += 0.01;
+    ctx.clearRect(0,0,w,h);
+    for(const s of stars){
+      const tw = 0.5 + 0.5*Math.sin(t*1.3+s.phase);
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(220,232,255,${(0.5*tw).toFixed(3)})`; ctx.fill();
+      if(!reduce){ s.y += s.drift*0.1; s.x += s.drift*0.04;
+        if(s.y>h) s.y=0; if(s.y<0) s.y=h; if(s.x>w) s.x=0; if(s.x<0) s.x=w; }
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* ================= Shared helpers ================= */
+const clamp01 = v => Math.max(0, Math.min(1, v));
+function riskBand(score){
+  if(score >= 0.6) return {label:'High', cls:'risk-high', icon:'■'};
+  if(score >= 0.3) return {label:'Medium', cls:'risk-medium', icon:'▲'};
+  return {label:'Low', cls:'risk-low', icon:'●'};
+}
+function statusMark(s){ return s==='done' ? '✓' : s==='partial' ? '~' : '!'; }
+function statusMarkClass(s){ return s==='done' ? 'mark-done' : s==='partial' ? 'mark-partial' : 'mark-todo'; }
+function statusLabel(s){ return s==='done' ? 'Done' : s==='partial' ? 'Partial' : 'To do'; }
+function showTip(evt, html){
+  tooltip.innerHTML = html; tooltip.style.opacity = 1;
+  tooltip.style.left = (evt.clientX + window.scrollX + 14) + 'px';
+  tooltip.style.top = (evt.clientY + window.scrollY - 10) + 'px';
+}
+function hideTip(){ tooltip.style.opacity = 0; }
+function findStudent(id){ return DATA.students.find(s => String(s.id_student) === String(id)); }
+
+/* ================= Content model: components & endpoints ================= */
+const COMPONENTS = [
+  { id:1, title:'Data Engineering', student:'Adeleke, Funso Hezekiah', banner:'B01830129',
+    focus:'Data acquisition, preprocessing, integration, and governance pipeline supplying clean, validated institutional datasets to the predictive modelling component.',
+    objectives:[
+      {text:'Identify and justify publicly available datasets for student attrition research', status:'done'},
+      {text:'Profile candidate datasets: missingness, class imbalance, outliers, demographic coverage', status:'done'},
+      {text:'Design a normalised relational data model and data dictionary', status:'partial'},
+      {text:'Implement a reproducible ETL pipeline in Python', status:'done'},
+      {text:'Apply bias detection across demographic subgroups', status:'done'},
+      {text:'Implement automated data quality checks on every pipeline run', status:'done'},
+      {text:'Document data lineage for every modelling feature', status:'todo'},
+      {text:'Ensure UK Data Protection Act 2018 / UK GDPR compliance', status:'done'},
+    ]},
+  { id:2, title:'Machine Learning', student:'Ewa, Nnaemeka Ibemgbo', banner:'B01809132',
+    focus:'Machine learning model development, selection, and validation for predicting individual student attrition risk, including feature engineering, model evaluation, and interpretability.',
+    objectives:[
+      {text:'Review the ML literature on student attrition prediction', status:'done'},
+      {text:'Perform feature engineering on the processed dataset', status:'done'},
+      {text:'Train and tune candidate classifiers (logistic regression, random forest, XGBoost)', status:'done'},
+      {text:'Evaluate with AUC-ROC, AUC-PR, F1 across decision thresholds', status:'done'},
+      {text:'Apply probability calibration and evaluate with Brier score / reliability diagram', status:'done'},
+      {text:'Generate SHAP feature-attribution explanations', status:'partial'},
+      {text:'Assess performance across demographic subgroups', status:'done'},
+      {text:'Document experiments in a reproducible, version-controlled notebook', status:'partial'},
+    ]},
+  { id:3, title:'Back-End &amp; API', student:'Obah, Chigweyara Jessica', banner:'B01836524',
+    focus:'Back-end system architecture, REST API design, database management, model serving, and platform integration between the model and the web interface.',
+    objectives:[
+      {text:'Review REST API design and web-application security literature', status:'done'},
+      {text:'Design system architecture and API endpoint specification', status:'done'},
+      {text:'Implement a RESTful API server (FastAPI)', status:'done'},
+      {text:'Implement JWT role-based authentication and authorisation', status:'done'},
+      {text:'Integrate the serialised ML model artefact into a prediction-serving endpoint', status:'done'},
+      {text:'Implement the SQLAlchemy / PostgreSQL schema', status:'todo'},
+      {text:'Unit, integration, and load-testing strategy (pytest, Locust)', status:'todo'},
+      {text:'HTTPS, JWT expiry, and no-PII-logging compliance', status:'partial'},
+    ]},
+  { id:4, title:'Front-End &amp; UX', student:'Telaprolu, Anju', banner:'B01745616',
+    focus:'User-centred web interface design and front-end development of the early warning dashboard, including role-based access, data visualisation, and usability evaluation.',
+    objectives:[
+      {text:'Systematic review of dashboard design patterns and risk-communication interfaces', status:'done'},
+      {text:'Low-fidelity wireframes and high-fidelity role-based prototype', status:'done'},
+      {text:'React implementation meeting WCAG 2.1 AA, fully responsive', status:'partial'},
+      {text:'Role-based access control in the front-end', status:'done'},
+      {text:'Interactive risk, trend, and contributing-factor visualisations', status:'done'},
+      {text:'Formal usability evaluation with 6+ participants (SUS)', status:'todo'},
+      {text:'Iterate on interface design from usability findings', status:'todo'},
+      {text:'GDPR-safe client-side data handling', status:'done'},
+    ]},
+];
+
+const ENDPOINTS = [
+  { slug:'list-students', method:'GET', path:'/students', desc:'Paginated, filterable list of students with current risk score.',
+    roles:['administrator','advisor','module_leader'],
+    params:[{name:'code_module', label:'code_module', type:'module-select'}, {name:'min_risk', label:'min_risk', type:'number', value:0, step:0.1, min:0, max:1}, {name:'limit', label:'limit', type:'number', value:20, min:1, max:100}] },
+  { slug:'student-risk', method:'GET', path:'/students/{id_student}/risk', desc:'Individual risk score and top contributing factors for one student.',
+    roles:['administrator','advisor','module_leader'],
+    params:[{name:'id_student', label:'id_student', type:'student-id'}] },
+  { slug:'cohort-overview', method:'GET', path:'/cohort/overview', desc:'Cohort-level aggregates by module - withheld from the advisor role by design.',
+    roles:['administrator','module_leader'], params:[] },
+  { slug:'log-intervention', method:'POST', path:'/interventions', desc:'Record an outreach/intervention action taken for a flagged student.',
+    roles:['advisor','module_leader'],
+    params:[{name:'id_student', label:'id_student', type:'student-id'}, {name:'note', label:'note', type:'textarea'}] },
+  { slug:'get-interventions', method:'GET', path:'/interventions/{id_student}', desc:'Intervention history for a student, this session.',
+    roles:['administrator','advisor','module_leader'],
+    params:[{name:'id_student', label:'id_student', type:'student-id'}] },
+];
+const sessionInterventions = [];
+
+/* ================= Sidebar ================= */
+function buildSidebar(){
+  const nav = document.getElementById('sidebar-nav');
+  let html = `<div class="nav-group"><div class="nav-group-title">Overview</div>
+    <a class="nav-link" href="#/"><span class="lbl">Dashboard</span></a></div>`;
+
+  html += `<div class="nav-group"><div class="nav-group-title">Components</div>`;
+  COMPONENTS.forEach(c => {
+    const hasTodo = c.objectives.some(o=>o.status==='todo');
+    html += `<a class="nav-link" href="#/component/${c.id}">
+      <span class="status-dot ${hasTodo?'dot-warn':'dot-good'}"></span>
+      <span class="lbl">${c.id}. ${c.title.replace('&amp;','&')}<span class="sub">${c.student.split(',')[0]}</span></span>
+    </a>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="nav-group"><div class="nav-group-title">Back-end API</div>
+    <a class="nav-link" href="#/api"><span class="lbl">API Explorer</span></a>`;
+  ENDPOINTS.forEach(e => {
+    html += `<a class="nav-link" href="#/api/${e.slug}">
+      <span class="tag tag-${e.method.toLowerCase()}">${e.method}</span>
+      <span class="lbl">${e.path}</span>
+    </a>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="nav-group"><div class="nav-group-title">Data</div>
+    <a class="nav-link" href="#/students"><span class="lbl">Student register</span></a></div>`;
+
+  nav.innerHTML = html;
+}
+buildSidebar();
+
+function setActiveNav(){
+  const cur = location.hash || '#/';
+  document.querySelectorAll('.nav-link').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === cur);
+  });
+}
+
+/* Mobile sidebar toggle */
+const sidebarEl = document.getElementById('sidebar');
+const overlayEl = document.getElementById('sidebar-overlay');
+document.getElementById('menu-toggle').addEventListener('click', () => {
+  sidebarEl.classList.add('open'); overlayEl.classList.add('show');
+});
+overlayEl.addEventListener('click', () => { sidebarEl.classList.remove('open'); overlayEl.classList.remove('show'); });
+document.getElementById('sidebar-nav').addEventListener('click', () => { sidebarEl.classList.remove('open'); overlayEl.classList.remove('show'); });
+
+/* ================= Global trace search ================= */
+function traceTo(val){
+  const v = (val||'').trim();
+  if(!v) return;
+  location.hash = '#/students/' + encodeURIComponent(v);
+}
+document.getElementById('global-search-btn').addEventListener('click', () => traceTo(document.getElementById('global-search').value));
+document.getElementById('global-search').addEventListener('keydown', e => { if(e.key==='Enter') traceTo(e.target.value); });
+
+/* ================= Breadcrumb ================= */
+function setBreadcrumb(parts){
+  document.getElementById('breadcrumb').innerHTML = parts.map((p,i) =>
+    i===parts.length-1 ? `<b>${p}</b>` : `<span>${p}</span><span>/</span>`).join(' ');
+}
+
+/* ================= Chart builders (reused across pages) ================= */
+function magnitudeBarChart(container, rows){
+  const max = Math.max(...rows.map(r=>r.v));
+  container.innerHTML = rows.map(r => {
+    const pct = clamp01(r.v/max);
+    return `<div class="bar-row">
+      <div class="label">${r.k}</div>
+      <div class="track"><div class="fill" style="width:${(pct*100).toFixed(1)}%; background:linear-gradient(90deg, var(--blue-deep), var(--blue));"></div></div>
+      <div class="val num-val">${r.v.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+}
+
+function buildModelCompareChart(chartEl, legendEl){
+  const models = DATA.model_metrics.candidate_comparison;
+  const colors = {logistic_regression:'var(--blue)', random_forest:'var(--amber)', xgboost:'var(--aqua)'};
+  const names = {logistic_regression:'Logistic Regression', random_forest:'Random Forest', xgboost:'XGBoost'};
+  const metrics = ['auc_roc','auc_pr','f1'];
+  const metricLabels = {auc_roc:'AUC-ROC', auc_pr:'AUC-PR', f1:'F1'};
+  const W=520,H=230,padL=34,padB=26,padT=10,padR=10;
+  const groupW=(W-padL-padR)/metrics.length, barW=groupW/(models.length+1.4);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Model comparison chart">`;
+  for(let gv=0; gv<=1; gv+=0.25){
+    const y = padT + (1-gv)*(H-padT-padB);
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(255,255,255,0.07)"/>`;
+    svg += `<text x="${padL-6}" y="${y+3}" font-size="9.5" fill="var(--text-3)" text-anchor="end">${gv.toFixed(2)}</text>`;
+  }
+  metrics.forEach((m,mi) => {
+    const gx = padL + mi*groupW;
+    models.forEach((mod,bi) => {
+      const val = mod[m], bh = clamp01(val)*(H-padT-padB);
+      const x = gx + bi*barW + barW*0.5, y = H-padB-bh;
+      svg += `<rect data-tip="${names[mod.model]} - ${metricLabels[m]}: ${val}" class="bar-hover" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(barW*0.86).toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${colors[mod.model]}" opacity="0.92"/>`;
+    });
+    svg += `<text x="${gx+groupW/2}" y="${H-8}" font-size="11" fill="var(--text-2)" text-anchor="middle">${metricLabels[m]}</text>`;
+  });
+  svg += `</svg>`;
+  chartEl.innerHTML = svg;
+  legendEl.innerHTML = models.map(mod => `<div class="item"><span class="swatch" style="background:${colors[mod.model]}"></span>${names[mod.model]}</div>`).join('');
+  chartEl.querySelectorAll('.bar-hover').forEach(el => {
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+
+function buildReliabilityChart(container){
+  const pts = DATA.model_metrics.reliability_curve;
+  const W=480,H=230,pad=30;
+  const x=v=>pad+v*(W-pad*2), y=v=>H-pad-v*(H-pad*2);
+  let path = pts.map((p,i)=>`${i===0?'M':'L'} ${x(p.predicted_mean).toFixed(1)} ${y(p.observed_rate).toFixed(1)}`).join(' ');
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Calibration reliability diagram">`;
+  svg += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+  svg += `<path d="${path}" fill="none" stroke="var(--blue)" stroke-width="2.5"/>`;
+  pts.forEach(p => {
+    svg += `<circle class="rel-pt" data-tip="Predicted ${(p.predicted_mean*100).toFixed(1)}% · Observed ${(p.observed_rate*100).toFixed(1)}% · n=${p.n}" cx="${x(p.predicted_mean).toFixed(1)}" cy="${y(p.observed_rate).toFixed(1)}" r="5" fill="var(--void)" stroke="var(--blue)" stroke-width="2.5"/>`;
+  });
+  svg += `<text x="${pad}" y="${H-6}" font-size="10" fill="var(--text-3)">Predicted risk</text></svg>`;
+  container.innerHTML = svg;
+  container.querySelectorAll('.rel-pt').forEach(el => {
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+
+function buildFeatureImportanceChart(container, n){
+  const rows = DATA.feature_importance.slice(0, n||9);
+  const max = Math.max(...rows.map(r=>r.importance));
+  const nice = f => f.replace(/_/g,' ').replace('code module','module');
+  container.innerHTML = rows.map(r => {
+    const pct = clamp01(r.importance/max), op = (0.4+0.6*pct).toFixed(2);
+    return `<div class="bar-row">
+      <div class="label">${nice(r.feature)}</div>
+      <div class="track"><div class="fill" style="width:${(pct*100).toFixed(1)}%; background:var(--blue); opacity:${op};"></div></div>
+      <div class="val num-val">${(r.importance*100).toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+}
+
+function buildFairnessChart(container){
+  const rows = DATA.fairness_audit.gender;
+  const W=360,H=200,padL=34,padB=26,padT=10,padR=10;
+  const groupW=(W-padL-padR)/rows.length, barW=groupW/3;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Fairness audit chart">`;
+  for(let gv=0; gv<=1; gv+=0.25){
+    const yy = padT+(1-gv)*(H-padT-padB);
+    svg += `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="rgba(255,255,255,0.07)"/>`;
+  }
+  rows.forEach((r,i) => {
+    const gx = padL+i*groupW;
+    const tprH = clamp01(r.true_positive_rate)*(H-padT-padB);
+    const fprH = clamp01(r.false_positive_rate)*(H-padT-padB);
+    svg += `<rect class="bar-hover" data-tip="${r.group} - TPR ${(r.true_positive_rate*100).toFixed(1)}%" x="${(gx+barW*0.3).toFixed(1)}" y="${(H-padB-tprH).toFixed(1)}" width="${(barW*0.8).toFixed(1)}" height="${tprH.toFixed(1)}" rx="3" fill="var(--blue)"/>`;
+    svg += `<rect class="bar-hover" data-tip="${r.group} - FPR ${(r.false_positive_rate*100).toFixed(1)}%" x="${(gx+barW*1.15).toFixed(1)}" y="${(H-padB-fprH).toFixed(1)}" width="${(barW*0.8).toFixed(1)}" height="${fprH.toFixed(1)}" rx="3" fill="var(--amber)"/>`;
+    svg += `<text x="${gx+groupW/2}" y="${H-8}" font-size="11" fill="var(--text-2)" text-anchor="middle">${r.group}</text>`;
+  });
+  svg += `</svg>`;
+  container.innerHTML = svg + `<div class="chart-legend"><div class="item"><span class="swatch" style="background:var(--blue)"></span>True positive rate</div><div class="item"><span class="swatch" style="background:var(--amber)"></span>False positive rate</div></div>`;
+  container.querySelectorAll('.bar-hover').forEach(el => {
+    el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+
+/* ================= PAGE: Dashboard ================= */
+function renderDashboard(root){
+  const t = DATA.dataset_totals;
+  const cal = DATA.model_metrics.test_set_calibrated;
+  const kpis = [
+    {n:t.students_in_courses.toLocaleString(), l:'Student enrolments'},
+    {n:t.vle_log_entries.toLocaleString(), l:'VLE interaction logs'},
+    {n:(DATA.model_metrics.withdrawal_rate_overall*100).toFixed(1)+'%', l:'Historic withdrawal rate'},
+    {n:cal.auc_roc.toFixed(3), l:'Calibrated model AUC-ROC'},
+  ];
+  const topRisk = DATA.students.slice().sort((a,b)=>b.risk_score-a.risk_score).slice(0,5);
+
+  root.innerHTML = `
+    <div class="page-head">
+      <span class="eyebrow">Platform Overview</span>
+      <h1>Early warning platform dashboard</h1>
+      <p>Four components, one system - data engineering, machine learning, a back-end API, and this front-end, all evaluated against the same real Open University Learning Analytics Dataset.</p>
+    </div>
+    <div class="kpi-row">${kpis.map(k=>`<div class="glass panel-tight kpi-card"><div class="l">${k.l}</div><div class="n">${k.n}</div></div>`).join('')}</div>
+
+    <div class="glass panel trace-box">
+      <h3>Trace a student</h3>
+      <p>Look up any student in the scored sample by ID to open their full risk profile.</p>
+      <div class="trace-row"><input type="text" id="dash-trace-input" placeholder="e.g. ${topRisk[0].id_student}" /><button class="btn btn-grad" id="dash-trace-btn">Open profile</button></div>
+      <div class="trace-msg" id="dash-trace-msg"></div>
+    </div>
+
+    <h2 style="font-size:20px;margin:6px 0 14px;">Components</h2>
+    <div class="component-grid">${COMPONENTS.map(componentCardHtml).join('')}</div>
+
+    <div class="glass panel">
+      <div class="panel-head-row"><h3>Highest-risk students (sample)</h3><a href="#/students" class="link-btn">View full register →</a></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th></tr></thead>
+        <tbody>${topRisk.map(rowHtmlShort).join('')}</tbody>
+      </table></div>
+    </div>
+  `;
+  document.getElementById('dash-trace-btn').addEventListener('click', () => {
+    const v = document.getElementById('dash-trace-input').value.trim();
+    if(!v) return;
+    if(findStudent(v)) traceTo(v);
+    else document.getElementById('dash-trace-msg').innerHTML = `<span class="trace-msg err">No student #${v} in the current scored sample. Try ${topRisk[0].id_student}.</span>`;
+  });
+  document.getElementById('dash-trace-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('dash-trace-btn').click(); });
+  bindRowClicks(root);
+}
+function componentCardHtml(c){
+  const total = c.objectives.length, done = c.objectives.filter(o=>o.status==='done').length;
+  const hasTodo = c.objectives.some(o=>o.status==='todo');
+  return `<a href="#/component/${c.id}" class="component-card glass">
+    <div class="cc-top"><span class="cc-num">COMPONENT 0${c.id}</span><span class="status-dot ${hasTodo?'dot-warn':'dot-good'}"></span></div>
+    <h3>${c.title}</h3>
+    <p class="cc-person">${c.student} &middot; ${c.banner}</p>
+    <p class="cc-focus">${c.focus}</p>
+    <div class="cc-progress"><div class="cc-progress-fill" style="width:${(done/total*100).toFixed(0)}%"></div></div>
+    <div class="cc-progress-label">${done} / ${total} objectives complete</div>
+  </a>`;
+}
+function rowHtmlShort(r){
+  const band = riskBand(r.risk_score);
+  return `<tr class="row-click" data-id="${r.id_student}">
+    <td class="mono">#${r.id_student}</td><td>${r.code_module} <span style="color:var(--text-3)">${r.code_presentation}</span></td>
+    <td><span class="risk-badge ${band.cls}">${band.icon} ${band.label}</span></td><td class="num-val">${r.risk_score.toFixed(2)}</td></tr>`;
+}
+function bindRowClicks(scope){
+  scope.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => traceTo(tr.dataset.id)));
+}
+
+/* ================= PAGE: Component detail ================= */
+function renderComponent(root, n){
+  const c = COMPONENTS.find(x=>x.id===n);
+  if(!c){ root.innerHTML = `<p>Unknown component.</p>`; return; }
+  root.innerHTML = `
+    <div class="page-head">
+      <span class="eyebrow">Component ${c.id} of 4</span>
+      <h1>${c.title}</h1>
+      <p class="person-line"><strong>${c.student}</strong> &nbsp;<span class="banner">${c.banner}</span></p>
+      <p>${c.focus}</p>
+    </div>
+    <div class="two-col">
+      <div class="glass panel">
+        <h3>Objectives</h3>
+        <ul class="obj-list">${c.objectives.map(o=>`
+          <li><span class="num ${statusMarkClass(o.status)}">${statusMark(o.status)}</span><span>${o.text}</span><span class="status-tag ${o.status}">${statusLabel(o.status)}</span></li>`).join('')}</ul>
+      </div>
+      <div class="glass panel" id="component-extra"></div>
+    </div>
+    <div id="component-body"></div>
+  `;
+  const extra = document.getElementById('component-extra');
+  const body = document.getElementById('component-body');
+
+  if(n===1){
+    extra.innerHTML = `<h3>Automated quality checks</h3><ul class="obj-list" id="qc-list"></ul>`;
+    const qc = DATA.quality_checks;
+    const items = [
+      [qc.unique_student_module_presentation, 'Student × module × presentation key is unique'],
+      [qc.no_null_target, 'No missing values in the attrition target label'],
+      [qc.score_range_valid, 'All assessment scores fall within 0–100'],
+      [true, `Class balance: ${(qc.class_balance['1']*100).toFixed(1)}% withdrawn / ${(qc.class_balance['0']*100).toFixed(1)}% retained`],
+    ];
+    document.getElementById('qc-list').innerHTML = items.map(it=>`<li><span class="num mark-done">✓</span><span>${it[1]}</span></li>`).join('');
+
+    body.innerHTML = `
+      <div class="glass panel">
+        <h3>Source table profile</h3>
+        <div class="table-wrap"><table id="dq-table"></table></div>
+      </div>
+      <div class="glass panel">
+        <h3>Demographic bias audit - withdrawal rate by subgroup</h3>
+        <p>Objective 5: quantify whether outcomes differ systematically across demographic groups before any model is trained.</p>
+        <div class="grid-2">
+          <div><h4 style="font-size:14px;color:var(--text-2);">By disability status</h4><div id="bias-disability"></div></div>
+          <div><h4 style="font-size:14px;color:var(--text-2);">By age band</h4><div id="bias-age_band"></div></div>
+        </div>
+      </div>`;
+    document.getElementById('dq-table').innerHTML = `<thead><tr><th>Table</th><th>Rows</th><th>Cols</th><th>Cols w/ missing</th><th>Dupes</th></tr></thead>
+      <tbody>${DATA.data_quality_summary.map(t=>`<tr><td>${t.table}</td><td class="num-val">${t.rows.toLocaleString()}</td><td class="num-val">${t.n_columns}</td><td class="num-val">${t.n_cols_with_missing}</td><td class="num-val">${t.duplicate_rows}</td></tr>`).join('')}</tbody>`;
+    magnitudeBarChart(document.getElementById('bias-disability'), DATA.bias_audit.disability.map(r=>({k:r.disability, v:r.withdrawal_rate_pct})));
+    magnitudeBarChart(document.getElementById('bias-age_band'), DATA.bias_audit.age_band.map(r=>({k:r.age_band, v:r.withdrawal_rate_pct})));
+  }
+
+  if(n===2){
+    const cal = DATA.model_metrics.test_set_calibrated, raw = DATA.model_metrics.test_set_uncalibrated;
+    extra.innerHTML = `<h3>Selected model</h3>
+      <p style="font-size:26px;font-weight:700;color:var(--text-1);text-transform:capitalize;margin:6px 0;">${DATA.model_metrics.selected_model.replace('_',' ')}</p>
+      <p>Chosen by validation AUC-PR (the imbalanced-classification priority metric).</p>
+      <p><strong style="color:var(--text-1);">Calibrated Brier score:</strong> ${cal.brier_score} <span style="color:var(--text-3);">(vs. ${raw.brier_score} uncalibrated)</span></p>
+      <p><strong style="color:var(--text-1);">Held-out test AUC-ROC / AUC-PR:</strong> ${cal.auc_roc} / ${cal.auc_pr} <span style="color:var(--text-3);"> -  n=${DATA.model_metrics.n_test.toLocaleString()}</span></p>`;
+    body.innerHTML = `
+      <div class="two-col">
+        <div class="glass panel"><h3>Candidate model comparison (validation set)</h3><div id="model-compare-chart"></div><div class="chart-legend" id="model-compare-legend"></div></div>
+        <div class="glass panel"><h3>Calibration - reliability diagram</h3><p style="font-size:14px;">Predicted risk vs. observed withdrawal rate. Points hugging the diagonal mean a "70% risk" student withdraws ~70% of the time.</p><div id="reliability-chart"></div></div>
+      </div>
+      <div class="two-col">
+        <div class="glass panel"><h3>Feature importance</h3><p style="font-size:14px;">Ranked contribution to the model's predictions - the same factors shown to advisors as "why this student is flagged."</p><div id="feature-importance-chart"></div></div>
+        <div class="glass panel"><h3>Subgroup fairness check</h3><p style="font-size:14px;">True/false-positive rate by gender - a large gap would mean the model over- or under-flags a demographic group.</p><div id="fairness-chart"></div></div>
+      </div>`;
+    buildModelCompareChart(document.getElementById('model-compare-chart'), document.getElementById('model-compare-legend'));
+    buildReliabilityChart(document.getElementById('reliability-chart'));
+    buildFeatureImportanceChart(document.getElementById('feature-importance-chart'), 9);
+    buildFairnessChart(document.getElementById('fairness-chart'));
+  }
+
+  if(n===3){
+    extra.innerHTML = `<h3>Security &amp; compliance controls</h3><ul class="obj-list">${[
+      'JWT bearer tokens with short expiry scope every response to the caller\'s role',
+      'Cohort-level aggregates withheld from the advisor role (data minimisation)',
+      'HTTPS-only transport; no PII written to logs',
+      'Pydantic response models enforce the nested JSON contract at runtime',
+    ].map(s=>`<li><span class="num mark-done">✓</span><span>${s}</span></li>`).join('')}</ul>`;
+    body.innerHTML = `
+      <div class="glass panel">
+        <div class="panel-head-row"><h3>Endpoint contract</h3><a href="#/api" class="link-btn">Open the API Explorer →</a></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Method</th><th>Endpoint</th><th>Roles</th></tr></thead>
+          <tbody>${ENDPOINTS.map(e=>`<tr class="row-click" data-nav="#/api/${e.slug}"><td><span class="method-tag method-${e.method.toLowerCase()}">${e.method}</span></td><td class="mono">${e.path}</td><td>${e.roles.join(', ')}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>`;
+    body.querySelectorAll('tr[data-nav]').forEach(tr => tr.addEventListener('click', () => location.hash = tr.dataset.nav));
+  }
+
+  if(n===4){
+    extra.innerHTML = `<h3>Role-based scoping</h3><ul class="obj-list">${[
+      'Administrator - full cohort visibility across all modules',
+      'Advisor - individual profiles only; cohort aggregates withheld',
+      'Module Leader - cohort trends scoped to their own module',
+    ].map(s=>`<li><span class="num mark-done">✓</span><span>${s}</span></li>`).join('')}</ul>`;
+    body.innerHTML = `
+      <div class="glass panel">
+        <div class="panel-head-row"><h3>Live interface</h3><a href="#/students" class="link-btn">Open the student register →</a></div>
+        <p>The role-based risk register, individual student profiles, and every chart on this page are the working front-end prototype - not a mock-up. Use the sidebar's <strong>Student register</strong> link or the trace box on the dashboard to explore it.</p>
+      </div>`;
+  }
+}
+
+/* ================= PAGE: API list ================= */
+function renderApiList(root){
+  root.innerHTML = `
+    <div class="page-head">
+      <span class="eyebrow">Component 3 · Back-end</span>
+      <h1>API Explorer</h1>
+      <p>Every route below matches <code>backend/main.py</code>'s FastAPI contract. Selecting one runs the same logic client-side, against the same processed dataset the live API would query.</p>
+    </div>
+    <div class="api-list">${ENDPOINTS.map(e=>`
+      <a href="#/api/${e.slug}" class="api-row glass">
+        <span class="method-tag method-${e.method.toLowerCase()}">${e.method}</span>
+        <span class="api-path">${e.path}</span>
+        <span class="api-desc">${e.desc}</span>
+        <span class="api-roles">${e.roles.join(', ')}</span>
+        <span class="api-arrow">→</span>
+      </a>`).join('')}</div>`;
+}
+
+/* ================= PAGE: API detail (interactive) ================= */
+function renderApiDetail(root, ep){
+  if(!ep){ root.innerHTML = `<p>Unknown endpoint. <a href="#/api">Back to API Explorer</a></p>`; return; }
+  const modules = [...new Set(DATA.students.map(s=>s.code_module))].sort();
+  root.innerHTML = `
+    <a href="#/api" class="back-link">← API Explorer</a>
+    <div class="page-head" style="margin-top:6px;">
+      <div class="endpoint-title"><span class="method-tag method-${ep.method.toLowerCase()}">${ep.method}</span><code class="endpoint-path">${ep.path}</code></div>
+      <p>${ep.desc}</p>
+      <p class="roles-line">Allowed roles: ${ep.roles.map(r=>`<span class="chip chip-blue">${r}</span>`).join('')}</p>
+    </div>
+    <div class="glass panel">
+      <h3>Try it</h3>
+      <div class="param-form" id="param-form"></div>
+      <button class="btn btn-grad" id="run-btn">Run request</button>
+    </div>
+    <div class="glass panel hidden" id="response-panel">
+      <div class="panel-head-row"><h3>Response</h3><button class="link-btn" id="toggle-raw">Show raw JSON</button></div>
+      <div id="status-line-holder"></div>
+      <div id="response-rendered"></div>
+      <pre id="response-raw" class="raw-json hidden"></pre>
+    </div>
+  `;
+  const form = document.getElementById('param-form');
+  form.innerHTML = ep.params.map(p => {
+    if(p.type === 'module-select'){
+      return `<div class="field"><label for="param-${p.name}">${p.label}</label>
+        <select id="param-${p.name}"><option value="">All modules</option>${modules.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>`;
+    }
+    if(p.type === 'number'){
+      return `<div class="field"><label for="param-${p.name}">${p.label}</label>
+        <input type="number" id="param-${p.name}" value="${p.value}" step="${p.step||1}" min="${p.min}" max="${p.max}" /></div>`;
+    }
+    if(p.type === 'student-id'){
+      const sample = DATA.students[0].id_student;
+      return `<div class="field"><label for="param-${p.name}">${p.label}</label>
+        <input type="text" id="param-${p.name}" placeholder="e.g. ${sample}" /></div>`;
+    }
+    if(p.type === 'textarea'){
+      return `<div class="field" style="min-width:280px;flex:1;"><label for="param-${p.name}">${p.label}</label>
+        <textarea id="param-${p.name}" placeholder="Outreach note…"></textarea></div>`;
+    }
+    return '';
+  }).join('') || `<p style="color:var(--text-3);font-size:14px;">No parameters - this endpoint takes none.</p>`;
+
+  document.getElementById('run-btn').addEventListener('click', () => runEndpoint(ep));
+  document.getElementById('toggle-raw').addEventListener('click', () => {
+    const raw = document.getElementById('response-raw');
+    raw.classList.toggle('hidden');
+    document.getElementById('toggle-raw').textContent = raw.classList.contains('hidden') ? 'Show raw JSON' : 'Hide raw JSON';
+  });
+}
+
+function getParam(name){ const el = document.getElementById('param-'+name); return el ? el.value : ''; }
+
+function runEndpoint(ep){
+  const panel = document.getElementById('response-panel');
+  const rendered = document.getElementById('response-rendered');
+  const raw = document.getElementById('response-raw');
+  const statusHolder = document.getElementById('status-line-holder');
+  panel.classList.remove('hidden');
+  raw.classList.add('hidden');
+  document.getElementById('toggle-raw').textContent = 'Show raw JSON';
+
+  if(ep.slug === 'list-students'){
+    const module = getParam('code_module');
+    const minRisk = parseFloat(getParam('min_risk')) || 0;
+    const limit = parseInt(getParam('limit'),10) || 20;
+    let rows = DATA.students.filter(s => (!module || s.code_module===module) && s.risk_score >= minRisk);
+    rows = rows.slice().sort((a,b)=>b.risk_score-a.risk_score).slice(0, limit);
+    const payload = rows.map(r => ({
+      id_student:r.id_student, code_module:r.code_module, code_presentation:r.code_presentation,
+      risk_score:r.risk_score, risk_band:riskBand(r.risk_score).label.toLowerCase(),
+      top_factors: DATA.feature_importance.slice(0,3).map(f=>({feature:f.feature, contribution:f.importance})),
+    }));
+    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span><span>${payload.length} student(s) returned</span></div>`;
+    rendered.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th></tr></thead>
+      <tbody>${rows.map(rowHtmlShort).join('')}</tbody></table></div>`;
+    bindRowClicks(rendered);
+    raw.textContent = JSON.stringify(payload, null, 2);
+  }
+
+  else if(ep.slug === 'student-risk'){
+    const id = getParam('id_student').trim();
+    const rec = findStudent(id);
+    if(!rec){
+      statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-404">404 Not Found</span><span>Student not found in current scored cohort</span></div>`;
+      rendered.innerHTML = `<p>No student with ID <strong>${id||'(empty)'}</strong> in the current scored sample.</p>`;
+      raw.textContent = JSON.stringify({detail:'Student not found in current scored cohort'}, null, 2);
+      return;
+    }
+    const band = riskBand(rec.risk_score);
+    const factors = DATA.feature_importance.slice(0,5);
+    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span></div>`;
+    rendered.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+        <div style="font-size:30px;font-weight:700;">${rec.risk_score.toFixed(2)}</div>
+        <span class="risk-badge ${band.cls}">${band.icon} ${band.label} risk</span>
+      </div>
+      <p><a href="#/students/${rec.id_student}">Open full profile for student #${rec.id_student} →</a></p>
+      ${factors.map(f=>`<div class="bar-row"><div class="label">${f.feature.replace(/_/g,' ')}</div><div class="track"><div class="fill" style="width:${(f.importance/factors[0].importance*100).toFixed(1)}%;background:var(--blue);"></div></div><div class="val num-val">${(f.importance*100).toFixed(1)}%</div></div>`).join('')}`;
+    raw.textContent = JSON.stringify({
+      id_student:rec.id_student, code_module:rec.code_module, code_presentation:rec.code_presentation,
+      risk_score:rec.risk_score, risk_band:band.label.toLowerCase(),
+      top_factors: factors.map(f=>({feature:f.feature, contribution:f.importance})),
+    }, null, 2);
+  }
+
+  else if(ep.slug === 'cohort-overview'){
+    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span><span>${DATA.cohort_overview.length} module(s)</span></div>`;
+    rendered.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Module</th><th>Students</th><th>Mean risk</th><th>% high-risk</th><th>Historic withdrawal</th></tr></thead>
+      <tbody>${DATA.cohort_overview.map(c=>`<tr><td>${c.code_module}</td><td class="num-val">${c.n_students}</td><td class="num-val">${c.mean_risk}</td><td class="num-val">${c.pct_high_risk}%</td><td class="num-val">${c.withdrawal_rate_historic}%</td></tr>`).join('')}</tbody></table></div>`;
+    raw.textContent = JSON.stringify(DATA.cohort_overview, null, 2);
+  }
+
+  else if(ep.slug === 'log-intervention'){
+    const id = getParam('id_student').trim();
+    const note = getParam('note').trim();
+    if(!id || !note){
+      statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-404">422 Unprocessable</span><span>id_student and note are both required</span></div>`;
+      rendered.innerHTML = `<p>Provide both a student ID and a note before running the request.</p>`;
+      raw.textContent = JSON.stringify({detail:'id_student and note are required'}, null, 2);
+      return;
+    }
+    const record = {id_student:Number(id)||id, created_by:'demo_advisor', note, created_at:new Date().toISOString()};
+    sessionInterventions.push(record);
+    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-201">201 Created</span><span>Logged for this session only (in-memory demo store)</span></div>`;
+    rendered.innerHTML = `<p>Intervention recorded for student <strong>#${record.id_student}</strong> at ${new Date(record.created_at).toLocaleString()}.</p>
+      <p><a href="#/students/${record.id_student}">Open that student's profile →</a></p>`;
+    raw.textContent = JSON.stringify(record, null, 2);
+  }
+
+  else if(ep.slug === 'get-interventions'){
+    const id = getParam('id_student').trim();
+    const rows = sessionInterventions.filter(r => String(r.id_student)===String(id));
+    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span><span>${rows.length} record(s) this session</span></div>`;
+    rendered.innerHTML = rows.length
+      ? `<div class="table-wrap"><table><thead><tr><th>Created</th><th>By</th><th>Note</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="mono">${new Date(r.created_at).toLocaleString()}</td><td>${r.created_by}</td><td>${r.note}</td></tr>`).join('')}</tbody></table></div>`
+      : `<p>No interventions logged yet for student <strong>#${id||'(empty)'}</strong> in this session. Log one via <a href="#/api/log-intervention">POST /interventions</a> first.</p>`;
+    raw.textContent = JSON.stringify(rows, null, 2);
+  }
+}
+
+/* ================= PAGE: Student register ================= */
+let regModule = '', regSearch = '';
+function renderStudentList(root){
+  const modules = [...new Set(DATA.students.map(s=>s.code_module))].sort();
+  root.innerHTML = `
+    <div class="page-head">
+      <span class="eyebrow">Component 4 · Front-end</span>
+      <h1>Student risk register</h1>
+      <p>Sorted by calibrated risk score, descending. Click any row to open the individual profile.</p>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+      <input type="text" id="reg-search" placeholder="Search by student ID…" value="${regSearch}" />
+      <select id="reg-module"><option value="">All modules</option>${modules.map(m=>`<option value="${m}" ${m===regModule?'selected':''}>${m}</option>`).join('')}</select>
+    </div>
+    <div class="glass panel">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th><th>Submission rate</th><th>Active days</th></tr></thead>
+        <tbody id="reg-body"></tbody>
+      </table></div>
+    </div>`;
+  document.getElementById('reg-search').addEventListener('input', e => { regSearch = e.target.value; renderRegBody(); });
+  document.getElementById('reg-module').addEventListener('change', e => { regModule = e.target.value; renderRegBody(); });
+  renderRegBody();
+}
+function renderRegBody(){
+  let rows = DATA.students;
+  if(regModule) rows = rows.filter(r=>r.code_module===regModule);
+  if(regSearch) rows = rows.filter(r=>String(r.id_student).includes(regSearch.trim()));
+  rows = rows.slice().sort((a,b)=>b.risk_score-a.risk_score).slice(0,80);
+  const tbody = document.getElementById('reg-body');
+  tbody.innerHTML = rows.map(r => {
+    const band = riskBand(r.risk_score);
+    return `<tr class="row-click" data-id="${r.id_student}">
+      <td class="mono">#${r.id_student}</td><td>${r.code_module} <span style="color:var(--text-3)">${r.code_presentation}</span></td>
+      <td><span class="risk-badge ${band.cls}">${band.icon} ${band.label}</span></td>
+      <td class="num-val">${r.risk_score.toFixed(2)}</td><td class="num-val">${(r.submission_rate*100).toFixed(0)}%</td><td class="num-val">${r.active_days}</td></tr>`;
+  }).join('');
+  bindRowClicks(tbody);
+}
+
+/* ================= PAGE: Student detail ================= */
+function renderStudentDetail(root, id){
+  const rec = findStudent(id);
+  if(!rec){
+    root.innerHTML = `
+      <a href="#/students" class="back-link">← Student register</a>
+      <div class="glass panel"><h3>Student not found</h3><p>No student with ID <strong>${id}</strong> exists in the current scored sample of ${DATA.students.length} students. Try one from the <a href="#/students">register</a>.</p></div>`;
+    return;
+  }
+  const band = riskBand(rec.risk_score);
+  const factors = DATA.feature_importance.slice(0,6);
+  root.innerHTML = `
+    <a href="#/students" class="back-link">← Student register</a>
+    <div class="page-head" style="margin-top:6px;">
+      <span class="eyebrow">Student profile</span>
+      <h1>Student #${rec.id_student}</h1>
+      <p>${rec.code_module} ${rec.code_presentation} &middot; ${rec.gender} &middot; ${rec.age_band} &middot; ${rec.highest_education} &middot; ${rec.region}</p>
+    </div>
+    <div class="two-col">
+      <div class="glass panel">
+        <h3>Calibrated risk score</h3>
+        <div style="display:flex;align-items:center;gap:16px;margin:10px 0 16px;">
+          <div style="font-size:42px;font-weight:700;">${rec.risk_score.toFixed(2)}</div>
+          <span class="risk-badge ${band.cls}" style="font-size:14px;">${band.icon} ${band.label} risk</span>
+        </div>
+        <div class="table-wrap"><table>
+          <tbody>
+            <tr><td>Submission rate</td><td class="num-val">${(rec.submission_rate*100).toFixed(0)}%</td></tr>
+            <tr><td>Mean assessment score</td><td class="num-val">${rec.mean_score ?? ' - '}</td></tr>
+            <tr><td>Active VLE days</td><td class="num-val">${rec.active_days}</td></tr>
+            <tr><td>Early-window clicks (first 4 weeks)</td><td class="num-val">${rec.early_clicks}</td></tr>
+            <tr><td>Previous attempts at this module</td><td class="num-val">${rec.num_of_prev_attempts}</td></tr>
+            <tr><td>Studied credits</td><td class="num-val">${rec.studied_credits}</td></tr>
+          </tbody>
+        </table></div>
+        <p style="margin-top:12px;font-size:13.5px;color:var(--text-3);">Actual outcome on record: <strong style="color:var(--text-2)">${rec.final_result}</strong> - shown here for evaluation only; hidden from advisors in a live deployment before the presentation ends.</p>
+      </div>
+      <div class="glass panel">
+        <h3>Top contributing factors</h3>
+        <p style="font-size:14px;">Model-wide feature importance - the same ranking is used to explain any student's score.</p>
+        <div id="student-factors"></div>
+        <div style="margin-top:16px;">
+          <a href="#/api/student-risk" class="link-btn">Inspect via GET /students/{id}/risk →</a>
+        </div>
+      </div>
+    </div>`;
+  buildFeatureImportanceChart(document.getElementById('student-factors'), 6);
+}
+
+/* ================= Router ================= */
+function router(){
+  let h = location.hash.replace(/^#\/?/, '');
+  const parts = h.split('/').filter(Boolean);
+  const page = parts[0] || 'dashboard';
+  const param = parts[1];
+  const root = document.getElementById('content');
+  root.innerHTML = '';
+
+  if(page === 'dashboard' || !parts.length){ setBreadcrumb(['Dashboard']); renderDashboard(root); }
+  else if(page === 'component'){ const n = Number(param); const c = COMPONENTS.find(x=>x.id===n);
+    setBreadcrumb(['Dashboard', c ? `Component ${n} · ${c.title.replace('&amp;','&')}` : 'Component']); renderComponent(root, n); }
+  else if(page === 'api' && !param){ setBreadcrumb(['Dashboard','API Explorer']); renderApiList(root); }
+  else if(page === 'api' && param){ const ep = ENDPOINTS.find(e=>e.slug===param);
+    setBreadcrumb(['Dashboard','API Explorer', ep ? `${ep.method} ${ep.path}` : param]); renderApiDetail(root, ep); }
+  else if(page === 'students' && !param){ setBreadcrumb(['Dashboard','Student register']); renderStudentList(root); }
+  else if(page === 'students' && param){ setBreadcrumb(['Dashboard','Student register', '#'+param]); renderStudentDetail(root, param); }
+  else { setBreadcrumb(['Dashboard']); renderDashboard(root); }
+
+  setActiveNav();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', router);
+router();
+</script>

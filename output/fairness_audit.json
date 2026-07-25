@@ -1,0 +1,78 @@
+{
+  "gender": [
+    {
+      "group": "F",
+      "n": 2975,
+      "true_positive_rate": 0.783,
+      "false_positive_rate": 0.078,
+      "mean_risk_score": 0.295
+    },
+    {
+      "group": "M",
+      "n": 3544,
+      "true_positive_rate": 0.771,
+      "false_positive_rate": 0.111,
+      "mean_risk_score": 0.318
+    }
+  ],
+  "age_band": [
+    {
+      "group": "0-35",
+      "n": 4553,
+      "true_positive_rate": 0.777,
+      "false_positive_rate": 0.101,
+      "mean_risk_score": 0.316
+    },
+    {
+      "group": "35-55",
+      "n": 1924,
+      "true_positive_rate": 0.776,
+      "false_positive_rate": 0.084,
+      "mean_risk_score": 0.289
+    },
+    {
+      "group": "55<=",
+      "n": 42,
+      "true_positive_rate": 0.7,
+      "false_positive_rate": 0.062,
+      "mean_risk_score": 0.232
+    }
+  ],
+  "highest_education": [
+    {
+      "group": "A Level or Equivalent",
+      "n": 2796,
+      "true_positive_rate": 0.775,
+      "false_positive_rate": 0.091,
+      "mean_risk_score": 0.292
+    },
+    {
+      "group": "HE Qualification",
+      "n": 939,
+      "true_positive_rate": 0.786,
+      "false_positive_rate": 0.067,
+      "mean_risk_score": 0.265
+    },
+    {
+      "group": "Lower Than A Level",
+      "n": 2676,
+      "true_positive_rate": 0.778,
+      "false_positive_rate": 0.115,
+      "mean_risk_score": 0.341
+    },
+    {
+      "group": "No Formal quals",
+      "n": 56,
+      "true_positive_rate": 0.652,
+      "false_positive_rate": 0.091,
+      "mean_risk_score": 0.315
+    },
+    {
+      "group": "Post Graduate Qualification",
+      "n": 52,
+      "true_positive_rate": 0.778,
+      "false_positive_rate": 0.0,
+      "mean_risk_score": 0.158
+    }
+  ]
+}
