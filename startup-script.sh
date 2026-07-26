@@ -10,7 +10,7 @@
 set -e
 
 # --- EDIT THIS: your GitHub repo URL (must be public - see DEPLOY.md) ---
-REPO_URL="https://github.com/<you>/early-warning-platform.git"
+REPO_URL="https://github.com/MartinMAllan/early-warning-platform.git"
 # --------------------------------------------------------------------------
 
 APP_DIR="/opt/early-warning-platform"
