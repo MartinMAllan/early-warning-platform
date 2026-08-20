@@ -1,0 +1,76 @@
+{
+  "source": "Usability Evaluation Questionnaire \u2013 Early Warning Platform (Responses).xlsx",
+  "n_responses": 14,
+  "n_scored": 14,
+  "mean_sus_score": 71.6,
+  "min_sus_score": 47.5,
+  "max_sus_score": 100.0,
+  "benchmark_note": "Mean SUS >= 68 is 'above average' per Bangor, Kortum & Miller (2008)",
+  "roles_represented": [
+    "Academic / Programme Leader",
+    "Assistant Finance Officer ",
+    "Data / IT Analyst",
+    "Engineering ",
+    "Other",
+    "Personal Tutor / Academic Advisor",
+    "Student Support / Advisory Staff"
+  ],
+  "per_respondent": [
+    {
+      "role": "Student Support / Advisory Staff",
+      "sus_score": 60.0
+    },
+    {
+      "role": "Engineering ",
+      "sus_score": 100.0
+    },
+    {
+      "role": "Data / IT Analyst",
+      "sus_score": 47.5
+    },
+    {
+      "role": "Academic / Programme Leader",
+      "sus_score": 47.5
+    },
+    {
+      "role": "Data / IT Analyst",
+      "sus_score": 55.0
+    },
+    {
+      "role": "Academic / Programme Leader",
+      "sus_score": 100.0
+    },
+    {
+      "role": "Data / IT Analyst",
+      "sus_score": 95.0
+    },
+    {
+      "role": "Academic / Programme Leader",
+      "sus_score": 47.5
+    },
+    {
+      "role": "Personal Tutor / Academic Advisor",
+      "sus_score": 90.0
+    },
+    {
+      "role": "Student Support / Advisory Staff",
+      "sus_score": 80.0
+    },
+    {
+      "role": "Student Support / Advisory Staff",
+      "sus_score": 50.0
+    },
+    {
+      "role": "Academic / Programme Leader",
+      "sus_score": 55.0
+    },
+    {
+      "role": "Assistant Finance Officer ",
+      "sus_score": 75.0
+    },
+    {
+      "role": "Other",
+      "sus_score": 100.0
+    }
+  ]
+}

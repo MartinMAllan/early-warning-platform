@@ -1,14 +1,3 @@
-"""
-ETL pipeline for the OULAD dataset -> modelling-ready student-attrition dataset.
-
-Maps to Data Engineering component objectives 2-6 (profiling, normalised data
-model / data dictionary, cleaning + feature engineering, bias audit, automated
-quality checks).
-
-Usage: python etl.py
-Reads from ../../open+university+learning+analytics+dataset/*.csv
-Writes to ../output/*.csv and ../output/*.json
-"""
 import json
 import warnings
 from pathlib import Path

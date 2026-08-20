@@ -82,7 +82,7 @@ The AUC-ROC sits above the 0.78–0.87 benchmark range cited in the literature r
 | 3. Train candidate algorithms (LR, RF, XGBoost + interpretable baseline) | Done | `train_models.py` - logistic regression doubles as the interpretable baseline |
 | 4. Evaluate with AUC-ROC/AUC-PR/F1 across thresholds | Done | `output/model_metrics.json` |
 | 5. Probability calibration (Brier, reliability diagram) | Done | Platt scaling via `CalibratedClassifierCV`; reliability curve in `output/model_metrics.json` and rendered on the dashboard |
-| 6. SHAP explanations | Partial | Feature importance is currently tree/coefficient-based (`output/feature_importance.json`), not true SHAP - `shap` isn't installed in this environment. Swapping in `shap.TreeExplainer` on the saved `attrition_risk_model.joblib` is a same-day task once the package is available |
+| 6. SHAP explanations | Done | `train_models.py` now runs `shap.TreeExplainer`/`LinearExplainer` on the selected model and writes a per-student top-5 signed contribution list into `sample_predictions.json`; `feature_importance.json` (model-wide) is kept only as the fallback used if a student's row somehow has no `top_factors`. Required a small compatibility shim (`XGBClassifierCalibratable.decision_function`) to work around an XGBoost 2.0.x / scikit-learn 1.9 interaction that otherwise breaks `CalibratedClassifierCV` for XGBoost specifically |
 | 7. Subgroup fairness (TPR/FPR by gender, age, education) | Done | `output/fairness_audit.json` |
 | 8. Reproducible, version-controlled notebook | Partial | Logic exists as a script with a fixed seed; porting to a documented notebook for the appendix is outstanding |
 
@@ -125,7 +125,7 @@ The AUC-ROC sits above the 0.78–0.87 benchmark range cited in the literature r
 ## 4. Immediate next actions (this week)
 
 1. **Adeleke** - write the data dictionary and lineage table from `etl.py`'s `keep_cols` list (objective 3/7); stand up the PostgreSQL/SQLite load script.
-2. **Ewa** - `pip install shap` and replace the tree-importance proxy in `train_models.py` with real `shap.TreeExplainer` output; add the early-window-only model variant described in §3.2.
+2. **Ewa** - real per-student SHAP output is now wired end-to-end (`train_models.py` → `sample_predictions.json` → `main.py` → dashboard); remaining work is the early-window-only model variant described in §3.2.
 3. **Obah** - write `pytest` unit tests against `backend/main.py`'s existing routes; wire `load_predictions()`/`load_feature_importance()` to the database once Adeleke's schema lands.
 4. **Telaprolu** - use `frontend/dashboard.html` as the approved design reference; scaffold the React + Tailwind + Recharts project and port section by section, starting with the student risk register and detail panel since those already have the clearest component boundaries; run axe-core against each page as it's built rather than at the end.
 5. **All** - submit the ethics application (Week 8 in every individual work plan) - nothing in §3.4 objectives 6–7 can start before approval, so this is the actual critical-path item, not the modelling or engineering work.
@@ -134,7 +134,6 @@ The AUC-ROC sits above the 0.78–0.87 benchmark range cited in the literature r
 
 - **Ethics approval and the 6-participant usability study** - requires UWS Ethics Review Manager sign-off and real recruitment; cannot be simulated.
 - **Live PostgreSQL deployment, HTTPS, and Locust load testing** - need a running server environment.
-- **True SHAP explanations** - blocked only by `pip install shap` in whatever environment the modelling work continues in; trivial once available.
 - **WCAG 2.1 AA conformance** - needs to be verified against the real React build with axe-core, not the prototype.
 
 ## 6. Nice-to-have extensions once the core is solid

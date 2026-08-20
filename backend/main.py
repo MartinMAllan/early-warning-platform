@@ -1,17 +1,3 @@
-"""
-FastAPI backend contract for the Early Warning Platform.
-
-Maps to Back-End component objectives 3-6: RESTful endpoints for risk scores,
-SHAP-style explanations, cohort statistics, and intervention records; JWT
-role-based auth scoping responses by role; SQLAlchemy-style data access
-(here backed by the CSV/JSON artefacts produced by the data-engineering and
-modelling stages so the contract can be exercised without standing up
-Postgres). Swap `load_*` for real SQLAlchemy queries once the database is
-provisioned - the route signatures and response models do not need to change.
-
-Run: uvicorn main:app --reload
-Docs: http://127.0.0.1:8000/docs
-"""
 import json
 import os
 from datetime import datetime, timedelta
@@ -24,14 +10,12 @@ from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "output"
 FRONTEND_DIR = ROOT / "frontend"
-# Set a real value via the SECRET_KEY environment variable in any deployment
-# beyond a local demo - a hardcoded fallback is fine for `uvicorn --reload`
-# on localhost only.
+
 SECRET_KEY = os.environ.get("SECRET_KEY", "CHANGE_ME_IN_ENV")  # pragma: allowlist secret
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_MINUTES = 30
@@ -52,7 +36,7 @@ app.add_middleware(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
-Role = Literal["administrator", "advisor", "module_leader"]
+Role = Literal["admin", "advisor", "module_leader"]
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +60,19 @@ class StudentRisk(BaseModel):
     risk_score: float
     risk_band: Literal["low", "medium", "high"]
     top_factors: List[FeatureAttribution]
+    gender: Optional[str] = None
+    region: Optional[str] = None
+    highest_education: Optional[str] = None
+    age_band: Optional[str] = None
+    num_of_prev_attempts: Optional[int] = None
+    studied_credits: Optional[int] = None
+    submission_rate: Optional[float] = None
+    mean_score: Optional[float] = None
+    active_days: Optional[float] = None
+    early_clicks: Optional[float] = None
+    # Withheld from the advisor role - the actual outcome would leak the
+    # answer a risk score is meant to warn about before it's known for real.
+    final_result: Optional[str] = None
 
 
 class CohortOverview(BaseModel):
@@ -94,7 +91,7 @@ class InterventionRecord(BaseModel):
 
 
 class InterventionCreate(BaseModel):
-    id_student: int
+    student_id: int
     note: str
 
 
@@ -112,7 +109,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenData:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return TokenData(sub=payload["sub"], role=payload["role"])
-    except JWTError:
+    except (JWTError, KeyError, ValidationError):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Could not validate credentials")
 
 
@@ -153,6 +150,26 @@ def risk_band(score: float) -> str:
 _INTERVENTIONS: List[InterventionRecord] = []  # in-memory demo store
 
 
+def student_extra_fields(row: dict, role: Role) -> dict:
+    """Demographic/engagement fields carried on the sample_predictions.json
+    row, beyond the minimal risk contract. final_result is withheld from the
+    advisor role - see the comment on StudentRisk.final_result.
+    """
+    return {
+        "gender": row.get("gender"),
+        "region": row.get("region"),
+        "highest_education": row.get("highest_education"),
+        "age_band": row.get("age_band"),
+        "num_of_prev_attempts": row.get("num_of_prev_attempts"),
+        "studied_credits": row.get("studied_credits"),
+        "submission_rate": row.get("submission_rate"),
+        "mean_score": row.get("mean_score"),
+        "active_days": row.get("active_days"),
+        "early_clicks": row.get("early_clicks"),
+        "final_result": row.get("final_result") if role != "advisor" else None,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -164,54 +181,59 @@ def login(username: str, role: Role):
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.get("/students", response_model=List[StudentRisk], tags=["students"])
+@app.get("/api/students", response_model=List[StudentRisk], tags=["students"])
 def list_students(
     code_module: Optional[str] = Query(None),
     min_risk: float = Query(0.0, ge=0, le=1),
     limit: int = Query(50, le=500),
     offset: int = 0,
-    user: TokenData = Depends(require_role("administrator", "advisor", "module_leader")),
+    user: TokenData = Depends(require_role("admin", "advisor", "module_leader")),
 ):
     """Paginated, filterable list of students with current risk score."""
     rows = load_predictions()
-    fi = load_feature_importance()[:3]
+    fallback = [{"feature": f["feature"], "contribution": f["importance"]} for f in load_feature_importance()[:3]]
     out = []
     for r in rows:
         if code_module and r["code_module"] != code_module:
             continue
         if r["risk_score"] < min_risk:
             continue
+        factors = r.get("top_factors") or fallback
         out.append(StudentRisk(
             id_student=r["id_student"], code_module=r["code_module"],
             code_presentation=r["code_presentation"], risk_score=r["risk_score"],
             risk_band=risk_band(r["risk_score"]),
-            top_factors=[FeatureAttribution(feature=f["feature"], contribution=f["importance"]) for f in fi],
+            top_factors=[FeatureAttribution(**f) for f in factors[:3]],
+            **student_extra_fields(r, user.role),
         ))
     return out[offset: offset + limit]
 
 
-@app.get("/students/{id_student}/risk", response_model=StudentRisk, tags=["students"])
+@app.get("/api/students/{id_student}", response_model=StudentRisk, tags=["students"])
 def get_student_risk(
     id_student: int,
-    user: TokenData = Depends(require_role("administrator", "advisor", "module_leader")),
+    user: TokenData = Depends(require_role("admin", "advisor", "module_leader")),
 ):
-    """Individual risk score + SHAP-style top contributing factors."""
+    """Individual risk score + per-student SHAP contributing factors."""
     rows = load_predictions()
     match = next((r for r in rows if r["id_student"] == id_student), None)
     if not match:
         raise HTTPException(404, "Student not found in current scored cohort")
-    fi = load_feature_importance()[:5]
+    factors = match.get("top_factors") or [
+        {"feature": f["feature"], "contribution": f["importance"]} for f in load_feature_importance()[:5]
+    ]
     return StudentRisk(
         id_student=match["id_student"], code_module=match["code_module"],
         code_presentation=match["code_presentation"], risk_score=match["risk_score"],
         risk_band=risk_band(match["risk_score"]),
-        top_factors=[FeatureAttribution(feature=f["feature"], contribution=f["importance"]) for f in fi],
+        top_factors=[FeatureAttribution(**f) for f in factors[:5]],
+        **student_extra_fields(match, user.role),
     )
 
 
-@app.get("/cohort/overview", response_model=List[CohortOverview], tags=["cohort"])
+@app.get("/api/cohort", response_model=List[CohortOverview], tags=["cohort"])
 def cohort_overview(
-    user: TokenData = Depends(require_role("administrator", "module_leader")),
+    user: TokenData = Depends(require_role("admin", "module_leader")),
 ):
     """Cohort-level aggregates - restricted from the advisor role (data minimisation)."""
     import pandas as pd
@@ -230,24 +252,24 @@ def cohort_overview(
     return out
 
 
-@app.post("/interventions", response_model=InterventionRecord, tags=["interventions"])
+@app.post("/api/interventions", response_model=InterventionRecord, tags=["interventions"])
 def log_intervention(
     payload: InterventionCreate,
     user: TokenData = Depends(require_role("advisor", "module_leader")),
 ):
     """Record an outreach/intervention action taken for a flagged student."""
     record = InterventionRecord(
-        id_student=payload.id_student, created_by=user.sub,
+        id_student=payload.student_id, created_by=user.sub,
         note=payload.note, created_at=datetime.utcnow(),
     )
     _INTERVENTIONS.append(record)
     return record
 
 
-@app.get("/interventions/{id_student}", response_model=List[InterventionRecord], tags=["interventions"])
+@app.get("/api/interventions/{id_student}", response_model=List[InterventionRecord], tags=["interventions"])
 def get_interventions(
     id_student: int,
-    user: TokenData = Depends(require_role("administrator", "advisor", "module_leader")),
+    user: TokenData = Depends(require_role("admin", "advisor", "module_leader")),
 ):
     return [r for r in _INTERVENTIONS if r.id_student == id_student]
 

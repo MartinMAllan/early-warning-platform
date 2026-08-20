@@ -3,76 +3,76 @@
     {
       "group": "F",
       "n": 2975,
-      "true_positive_rate": 0.783,
-      "false_positive_rate": 0.078,
-      "mean_risk_score": 0.295
+      "true_positive_rate": 0.812,
+      "false_positive_rate": 0.092,
+      "mean_risk_score": 0.297
     },
     {
       "group": "M",
       "n": 3544,
-      "true_positive_rate": 0.771,
-      "false_positive_rate": 0.111,
-      "mean_risk_score": 0.318
+      "true_positive_rate": 0.819,
+      "false_positive_rate": 0.126,
+      "mean_risk_score": 0.317
     }
   ],
   "age_band": [
     {
       "group": "0-35",
       "n": 4553,
-      "true_positive_rate": 0.777,
-      "false_positive_rate": 0.101,
-      "mean_risk_score": 0.316
+      "true_positive_rate": 0.814,
+      "false_positive_rate": 0.114,
+      "mean_risk_score": 0.317
     },
     {
       "group": "35-55",
       "n": 1924,
-      "true_positive_rate": 0.776,
-      "false_positive_rate": 0.084,
-      "mean_risk_score": 0.289
+      "true_positive_rate": 0.823,
+      "false_positive_rate": 0.102,
+      "mean_risk_score": 0.286
     },
     {
       "group": "55<=",
       "n": 42,
       "true_positive_rate": 0.7,
       "false_positive_rate": 0.062,
-      "mean_risk_score": 0.232
+      "mean_risk_score": 0.228
     }
   ],
   "highest_education": [
     {
       "group": "A Level or Equivalent",
       "n": 2796,
-      "true_positive_rate": 0.775,
-      "false_positive_rate": 0.091,
-      "mean_risk_score": 0.292
+      "true_positive_rate": 0.813,
+      "false_positive_rate": 0.107,
+      "mean_risk_score": 0.29
     },
     {
       "group": "HE Qualification",
       "n": 939,
-      "true_positive_rate": 0.786,
-      "false_positive_rate": 0.067,
-      "mean_risk_score": 0.265
+      "true_positive_rate": 0.841,
+      "false_positive_rate": 0.071,
+      "mean_risk_score": 0.262
     },
     {
       "group": "Lower Than A Level",
       "n": 2676,
-      "true_positive_rate": 0.778,
-      "false_positive_rate": 0.115,
-      "mean_risk_score": 0.341
+      "true_positive_rate": 0.815,
+      "false_positive_rate": 0.132,
+      "mean_risk_score": 0.344
     },
     {
       "group": "No Formal quals",
       "n": 56,
-      "true_positive_rate": 0.652,
+      "true_positive_rate": 0.696,
       "false_positive_rate": 0.091,
-      "mean_risk_score": 0.315
+      "mean_risk_score": 0.326
     },
     {
       "group": "Post Graduate Qualification",
       "n": 52,
       "true_positive_rate": 0.778,
-      "false_positive_rate": 0.0,
-      "mean_risk_score": 0.158
+      "false_positive_rate": 0.023,
+      "mean_risk_score": 0.155
     }
   ]
 }

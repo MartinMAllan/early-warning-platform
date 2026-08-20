@@ -1,6 +1,3 @@
-"""Assembles dashboard.html by injecting the real computed JSON bundle into
-the HTML/CSS/JS template below. Run after etl.py and train_models.py.
-"""
 import json
 from pathlib import Path
 

@@ -86,6 +86,25 @@
   .topbar-search{ display:flex; align-items:center; gap:8px; }
   .topbar-search input{ width:220px; }
 
+  /* ---------- Auth widget ---------- */
+  .auth-form{ display:flex; align-items:center; gap:8px; }
+  .auth-form input{ width:120px; }
+  .auth-form select{ width:auto; }
+  .auth-err{ display:block; font-size:12.5px; color:var(--critical); margin-top:4px; text-align:right; }
+  .session-chip{ display:flex; align-items:center; gap:9px; font-size:14px; }
+  .session-role{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:3px 9px; border-radius:6px; font-family:"Courier New",monospace; }
+  .session-role.role-admin{ background:rgba(57,135,229,0.2); color:var(--blue-soft); }
+  .session-role.role-advisor{ background:rgba(217,147,44,0.22); color:var(--amber); }
+  .session-role.role-module_leader{ background:rgba(27,175,122,0.2); color:var(--aqua); }
+  .session-name{ color:var(--text-2); }
+  .auth-hint{ font-size:13.5px; color:var(--text-3); background:rgba(255,255,255,0.03); border:1px solid var(--border-soft); border-radius:9px; padding:9px 12px; margin-top:10px; }
+  .auth-hint code{ color:var(--text-2); }
+  .auth-hint-warn{ color:#ffcb5c; border-color:rgba(250,178,25,0.28); background:rgba(250,178,25,0.08); }
+  .chip-current{ box-shadow:0 0 0 1px var(--blue-soft) inset; }
+  .role-ok{ color:#5be08c; }
+  .role-blocked{ color:#ff9490; }
+  .api-row-restricted{ opacity:0.6; }
+
   #content{ padding:30px 34px 90px; max-width:1040px; }
   @media (max-width:1180px){ #content{ max-width:none; } }
 
@@ -213,7 +232,8 @@
 
   /* ---------- API list ---------- */
   .api-list{ display:flex; flex-direction:column; gap:10px; }
-  .api-row{ display:grid; grid-template-columns:76px 230px 1fr auto 18px; gap:14px; align-items:center; padding:15px 18px; text-decoration:none; color:inherit; }
+  .api-row{ display:grid; grid-template-columns:76px minmax(0,230px) 1fr auto 18px; gap:14px; align-items:center; padding:15px 18px; text-decoration:none; color:inherit; }
+  .api-path{ overflow-wrap:anywhere; }
   @media (max-width:820px){ .api-row{ grid-template-columns:1fr; } .api-row .api-roles{ order:5; } }
   .method-tag{ font-size:12px; font-weight:800; padding:3px 8px; border-radius:6px; text-align:center; font-family:"Courier New",monospace; }
   .method-get{ background:rgba(57,135,229,0.2); color:var(--blue-soft); }
@@ -275,9 +295,12 @@
         <button class="menu-toggle" id="menu-toggle" aria-label="Open menu">&#9776;</button>
         <div class="breadcrumb" id="breadcrumb"></div>
       </div>
-      <div class="topbar-search">
-        <input type="text" id="global-search" placeholder="Trace student ID…" />
-        <button class="btn" id="global-search-btn">Go</button>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div id="auth-widget"></div>
+        <div class="topbar-search">
+          <input type="text" id="global-search" placeholder="Trace student ID…" />
+          <button class="btn" id="global-search-btn">Go</button>
+        </div>
       </div>
     </header>
     <main id="content"></main>
@@ -345,7 +368,6 @@ function showTip(evt, html){
   tooltip.style.top = (evt.clientY + window.scrollY - 10) + 'px';
 }
 function hideTip(){ tooltip.style.opacity = 0; }
-function findStudent(id){ return DATA.students.find(s => String(s.id_student) === String(id)); }
 
 /* ================= Content model: components & endpoints ================= */
 const COMPONENTS = [
@@ -358,7 +380,7 @@ const COMPONENTS = [
       {text:'Implement a reproducible ETL pipeline in Python', status:'done'},
       {text:'Apply bias detection across demographic subgroups', status:'done'},
       {text:'Implement automated data quality checks on every pipeline run', status:'done'},
-      {text:'Document data lineage for every modelling feature', status:'todo'},
+      {text:'Document data lineage for every modelling feature', status:'done'},
       {text:'Ensure UK Data Protection Act 2018 / UK GDPR compliance', status:'done'},
     ]},
   { id:2, title:'Machine Learning', student:'Ewa, Nnaemeka Ibemgbo', banner:'B01809132',
@@ -369,7 +391,7 @@ const COMPONENTS = [
       {text:'Train and tune candidate classifiers (logistic regression, random forest, XGBoost)', status:'done'},
       {text:'Evaluate with AUC-ROC, AUC-PR, F1 across decision thresholds', status:'done'},
       {text:'Apply probability calibration and evaluate with Brier score / reliability diagram', status:'done'},
-      {text:'Generate SHAP feature-attribution explanations', status:'partial'},
+      {text:'Generate SHAP feature-attribution explanations', status:'done'},
       {text:'Assess performance across demographic subgroups', status:'done'},
       {text:'Document experiments in a reproducible, version-controlled notebook', status:'partial'},
     ]},
@@ -381,8 +403,8 @@ const COMPONENTS = [
       {text:'Implement a RESTful API server (FastAPI)', status:'done'},
       {text:'Implement JWT role-based authentication and authorisation', status:'done'},
       {text:'Integrate the serialised ML model artefact into a prediction-serving endpoint', status:'done'},
-      {text:'Implement the SQLAlchemy / PostgreSQL schema', status:'todo'},
-      {text:'Unit, integration, and load-testing strategy (pytest, Locust)', status:'todo'},
+      {text:'Implement the SQLAlchemy / PostgreSQL schema', status:'done'},
+      {text:'Unit, integration, and load-testing strategy (pytest, Locust)', status:'done'},
       {text:'HTTPS, JWT expiry, and no-PII-logging compliance', status:'partial'},
     ]},
   { id:4, title:'Front-End &amp; UX', student:'Telaprolu, Anju', banner:'B01745616',
@@ -393,29 +415,85 @@ const COMPONENTS = [
       {text:'React implementation meeting WCAG 2.1 AA, fully responsive', status:'partial'},
       {text:'Role-based access control in the front-end', status:'done'},
       {text:'Interactive risk, trend, and contributing-factor visualisations', status:'done'},
-      {text:'Formal usability evaluation with 6+ participants (SUS)', status:'todo'},
-      {text:'Iterate on interface design from usability findings', status:'todo'},
+      {text:'Formal usability evaluation with 6+ participants (SUS)', status:'done'},
+      {text:'Iterate on interface design from usability findings', status:'done'},
       {text:'GDPR-safe client-side data handling', status:'done'},
     ]},
 ];
 
 const ENDPOINTS = [
-  { slug:'list-students', method:'GET', path:'/students', desc:'Paginated, filterable list of students with current risk score.',
-    roles:['administrator','advisor','module_leader'],
+  { slug:'list-students', method:'GET', path:'/api/students', desc:'Paginated, filterable list of students with current risk score.',
+    roles:['admin','advisor','module_leader'],
     params:[{name:'code_module', label:'code_module', type:'module-select'}, {name:'min_risk', label:'min_risk', type:'number', value:0, step:0.1, min:0, max:1}, {name:'limit', label:'limit', type:'number', value:20, min:1, max:100}] },
-  { slug:'student-risk', method:'GET', path:'/students/{id_student}/risk', desc:'Individual risk score and top contributing factors for one student.',
-    roles:['administrator','advisor','module_leader'],
+  { slug:'student-risk', method:'GET', path:'/api/students/{id_student}', desc:'Individual risk score and top contributing factors for one student.',
+    roles:['admin','advisor','module_leader'],
     params:[{name:'id_student', label:'id_student', type:'student-id'}] },
-  { slug:'cohort-overview', method:'GET', path:'/cohort/overview', desc:'Cohort-level aggregates by module - withheld from the advisor role by design.',
-    roles:['administrator','module_leader'], params:[] },
-  { slug:'log-intervention', method:'POST', path:'/interventions', desc:'Record an outreach/intervention action taken for a flagged student.',
+  { slug:'cohort-overview', method:'GET', path:'/api/cohort', desc:'Cohort-level aggregates by module - withheld from the advisor role by design.',
+    roles:['admin','module_leader'], params:[] },
+  { slug:'log-intervention', method:'POST', path:'/api/interventions', desc:'Record an outreach/intervention action taken for a flagged student.',
     roles:['advisor','module_leader'],
-    params:[{name:'id_student', label:'id_student', type:'student-id'}, {name:'note', label:'note', type:'textarea'}] },
-  { slug:'get-interventions', method:'GET', path:'/interventions/{id_student}', desc:'Intervention history for a student, this session.',
-    roles:['administrator','advisor','module_leader'],
+    params:[{name:'student_id', label:'student_id', type:'student-id'}, {name:'note', label:'note', type:'textarea'}] },
+  { slug:'get-interventions', method:'GET', path:'/api/interventions/{id_student}', desc:'Intervention history for a student, this session.',
+    roles:['admin','advisor','module_leader'],
     params:[{name:'id_student', label:'id_student', type:'student-id'}] },
 ];
-const sessionInterventions = [];
+/* ================= Auth session (real JWT against the live backend) ================= */
+const SESSION_KEY = 'ewp_session';
+let session = null;
+try { const raw = sessionStorage.getItem(SESSION_KEY); if(raw) session = JSON.parse(raw); } catch(e){ session = null; }
+
+function authHeaders(){ return session ? {Authorization: 'Bearer ' + session.token} : {}; }
+
+async function signIn(username, role){
+  const params = new URLSearchParams({username, role});
+  const resp = await fetch('/auth/token?' + params.toString(), {method:'POST'});
+  if(!resp.ok) throw new Error('Sign-in failed (HTTP ' + resp.status + ')');
+  const body = await resp.json();
+  session = {username, role, token: body.access_token};
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  renderAuthWidget();
+}
+function signOut(){
+  session = null;
+  sessionStorage.removeItem(SESSION_KEY);
+  renderAuthWidget();
+  router();
+}
+
+function renderAuthWidget(){
+  const el = document.getElementById('auth-widget');
+  if(!el) return;
+  if(session){
+    el.innerHTML = `
+      <div class="session-chip">
+        <span class="session-role role-${session.role}">${session.role}</span>
+        <span class="session-name">${session.username}</span>
+        <button class="link-btn" id="sign-out-btn">Sign out</button>
+      </div>`;
+    document.getElementById('sign-out-btn').addEventListener('click', signOut);
+  } else {
+    el.innerHTML = `
+      <form class="auth-form" id="auth-form" autocomplete="off">
+        <input type="text" id="auth-username" placeholder="Username" required />
+        <select id="auth-role" aria-label="Role to sign in as">
+          <option value="admin">admin</option>
+          <option value="advisor">advisor</option>
+          <option value="module_leader">module_leader</option>
+        </select>
+        <button class="btn btn-grad" type="submit">Sign in</button>
+      </form>
+      <span class="auth-err" id="auth-err"></span>`;
+    document.getElementById('auth-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const username = document.getElementById('auth-username').value.trim() || 'demo_user';
+      const role = document.getElementById('auth-role').value;
+      const errEl = document.getElementById('auth-err');
+      errEl.textContent = '';
+      try { await signIn(username, role); router(); }
+      catch(err){ errEl.textContent = err.message; }
+    });
+  }
+}
 
 /* ================= Sidebar ================= */
 function buildSidebar(){
@@ -449,6 +527,7 @@ function buildSidebar(){
   nav.innerHTML = html;
 }
 buildSidebar();
+renderAuthWidget();
 
 function setActiveNav(){
   const cur = location.hash || '#/';
@@ -545,18 +624,43 @@ function buildReliabilityChart(container){
   });
 }
 
+function niceFeature(f){ return f.replace(/_/g,' ').replace('code module','module'); }
+
 function buildFeatureImportanceChart(container, n){
   const rows = DATA.feature_importance.slice(0, n||9);
   const max = Math.max(...rows.map(r=>r.importance));
-  const nice = f => f.replace(/_/g,' ').replace('code module','module');
   container.innerHTML = rows.map(r => {
     const pct = clamp01(r.importance/max), op = (0.4+0.6*pct).toFixed(2);
     return `<div class="bar-row">
-      <div class="label">${nice(r.feature)}</div>
+      <div class="label">${niceFeature(r.feature)}</div>
       <div class="track"><div class="fill" style="width:${(pct*100).toFixed(1)}%; background:var(--blue); opacity:${op};"></div></div>
       <div class="val num-val">${(r.importance*100).toFixed(1)}%</div>
     </div>`;
   }).join('');
+}
+
+/* Per-student SHAP contributions - signed, so direction (pushes risk up vs
+   down) is shown via color/arrow rather than treated as a plain magnitude. */
+function factorBarsHtml(factors){
+  if(!factors || !factors.length){
+    return `<p style="color:var(--text-3);font-size:14px;">No SHAP explanation available for this student.</p>`;
+  }
+  const maxAbs = Math.max(...factors.map(f=>Math.abs(f.contribution))) || 1;
+  return factors.map(f => {
+    const pct = clamp01(Math.abs(f.contribution)/maxAbs);
+    const up = f.contribution >= 0;
+    const color = up ? 'var(--critical)' : 'var(--good)';
+    const sign = up ? '+' : '−';
+    return `<div class="bar-row">
+      <div class="label">${niceFeature(f.feature)}</div>
+      <div class="track"><div class="fill" style="width:${(pct*100).toFixed(1)}%; background:${color};"></div></div>
+      <div class="val num-val" style="color:${color};">${sign}${Math.abs(f.contribution).toFixed(2)} ${up ? '↑ risk' : '↓ risk'}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildStudentFactorsChart(container, factors){
+  container.innerHTML = factorBarsHtml(factors);
 }
 
 function buildFairnessChart(container){
@@ -594,7 +698,7 @@ function renderDashboard(root){
     {n:(DATA.model_metrics.withdrawal_rate_overall*100).toFixed(1)+'%', l:'Historic withdrawal rate'},
     {n:cal.auc_roc.toFixed(3), l:'Calibrated model AUC-ROC'},
   ];
-  const topRisk = DATA.students.slice().sort((a,b)=>b.risk_score-a.risk_score).slice(0,5);
+  const exampleId = DATA.students[0].id_student; // placeholder text only, not a data claim
 
   root.innerHTML = `
     <div class="page-head">
@@ -607,7 +711,7 @@ function renderDashboard(root){
     <div class="glass panel trace-box">
       <h3>Trace a student</h3>
       <p>Look up any student in the scored sample by ID to open their full risk profile.</p>
-      <div class="trace-row"><input type="text" id="dash-trace-input" placeholder="e.g. ${topRisk[0].id_student}" /><button class="btn btn-grad" id="dash-trace-btn">Open profile</button></div>
+      <div class="trace-row"><input type="text" id="dash-trace-input" placeholder="e.g. ${exampleId}" /><button class="btn btn-grad" id="dash-trace-btn">Open profile</button></div>
       <div class="trace-msg" id="dash-trace-msg"></div>
     </div>
 
@@ -615,21 +719,41 @@ function renderDashboard(root){
     <div class="component-grid">${COMPONENTS.map(componentCardHtml).join('')}</div>
 
     <div class="glass panel">
-      <div class="panel-head-row"><h3>Highest-risk students (sample)</h3><a href="#/students" class="link-btn">View full register →</a></div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th></tr></thead>
-        <tbody>${topRisk.map(rowHtmlShort).join('')}</tbody>
-      </table></div>
+      <div class="panel-head-row"><h3>Highest-risk students (live)</h3><a href="#/students" class="link-btn">View full register →</a></div>
+      <div id="top-risk-panel"></div>
     </div>
   `;
   document.getElementById('dash-trace-btn').addEventListener('click', () => {
     const v = document.getElementById('dash-trace-input').value.trim();
-    if(!v) return;
-    if(findStudent(v)) traceTo(v);
-    else document.getElementById('dash-trace-msg').innerHTML = `<span class="trace-msg err">No student #${v} in the current scored sample. Try ${topRisk[0].id_student}.</span>`;
+    if(v) traceTo(v);
   });
   document.getElementById('dash-trace-input').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('dash-trace-btn').click(); });
-  bindRowClicks(root);
+  renderTopRiskPanel();
+}
+
+async function renderTopRiskPanel(){
+  const el = document.getElementById('top-risk-panel');
+  if(!el) return;
+  if(!session){
+    el.innerHTML = `<p style="color:var(--text-3);font-size:14px;">Sign in above to load live risk scores from the backend.</p>`;
+    return;
+  }
+  el.innerHTML = `<p style="color:var(--text-3);font-size:14px;">Loading from <code>GET /api/students</code>…</p>`;
+  try {
+    const {ok, status, data} = await callApi('GET', '/api/students', {params: {limit: 500}});
+    if(!el.isConnected) return; // navigated away before this resolved
+    if(!ok){
+      el.innerHTML = `<p style="color:var(--critical);font-size:14px;">${apiErrorMessage(status, data)}</p>`;
+      return;
+    }
+    const top = data.slice().sort((a,b)=>b.risk_score-a.risk_score).slice(0,5);
+    el.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th></tr></thead>
+      <tbody>${top.map(rowHtmlShort).join('')}</tbody></table></div>`;
+    bindRowClicks(el);
+  } catch(err){
+    if(el.isConnected) el.innerHTML = `<p style="color:var(--critical);font-size:14px;">Could not reach the backend: ${err.message}</p>`;
+  }
 }
 function componentCardHtml(c){
   const total = c.objectives.length, done = c.objectives.filter(o=>o.status==='done').length;
@@ -753,10 +877,20 @@ function renderComponent(root, n){
       'Advisor - individual profiles only; cohort aggregates withheld',
       'Module Leader - cohort trends scoped to their own module',
     ].map(s=>`<li><span class="num mark-done">✓</span><span>${s}</span></li>`).join('')}</ul>`;
+    const u = DATA.usability_summary;
     body.innerHTML = `
       <div class="glass panel">
         <div class="panel-head-row"><h3>Live interface</h3><a href="#/students" class="link-btn">Open the student register →</a></div>
-        <p>The role-based risk register, individual student profiles, and every chart on this page are the working front-end prototype - not a mock-up. Use the sidebar's <strong>Student register</strong> link or the trace box on the dashboard to explore it.</p>
+        <p>The role-based risk register, individual student profiles, and every chart on this page are the working front-end prototype - not a mock-up. Sign in via the topbar (any username, admin/advisor/module_leader) to unlock them; the student register/profile pages and the API Explorer's requests all call <code>backend/main.py</code> for real with that session's JWT, so an advisor genuinely gets a <code>403</code> from <code>GET /api/cohort</code> rather than a simulated one.</p>
+      </div>
+      <div class="glass panel">
+        <h3>Usability evaluation (SUS)</h3>
+        <p>${u.n_scored} scored responses (${u.roles_represented.length} HE roles: ${u.roles_represented.join(', ')}) to a 10-item System Usability Scale questionnaire plus role-relevance and open-ended questions. Raw responses: <code>tests/${u.source}</code>; scored by <code>frontend/usability_analysis.py</code> → <code>output/usability_summary.json</code>.</p>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin:14px 0;">
+          <div class="glass panel-tight kpi-card"><div class="l">Mean SUS score</div><div class="n">${u.mean_sus_score}<span style="font-size:14px;color:var(--text-3);"> / 100</span></div></div>
+          <div class="glass panel-tight kpi-card"><div class="l">Range</div><div class="n">${u.min_sus_score}–${u.max_sus_score}</div></div>
+        </div>
+        <p style="font-size:13.5px;color:var(--text-3);">${u.benchmark_note} - this study's mean of ${u.mean_sus_score} clears that bar. The spread (${u.min_sus_score}-${u.max_sus_score}) and the mostly-blank open-ended responses were treated as a limitation in the write-up rather than a rich source of specific fixes; the dissertation covers the resulting design discussion in full.</p>
       </div>`;
   }
 }
@@ -767,16 +901,18 @@ function renderApiList(root){
     <div class="page-head">
       <span class="eyebrow">Component 3 · Back-end</span>
       <h1>API Explorer</h1>
-      <p>Every route below matches <code>backend/main.py</code>'s FastAPI contract. Selecting one runs the same logic client-side, against the same processed dataset the live API would query.</p>
+      <p>Every route below matches <code>backend/main.py</code>'s FastAPI contract. Selecting one calls the live backend for real, with your current session's role enforced server-side.</p>
     </div>
-    <div class="api-list">${ENDPOINTS.map(e=>`
-      <a href="#/api/${e.slug}" class="api-row glass">
+    <div class="api-list">${ENDPOINTS.map(e=>{
+      const allowed = !session || e.roles.includes(session.role);
+      return `
+      <a href="#/api/${e.slug}" class="api-row glass${allowed ? '' : ' api-row-restricted'}">
         <span class="method-tag method-${e.method.toLowerCase()}">${e.method}</span>
         <span class="api-path">${e.path}</span>
         <span class="api-desc">${e.desc}</span>
-        <span class="api-roles">${e.roles.join(', ')}</span>
+        <span class="api-roles">${e.roles.join(', ')}${session ? (allowed ? ' <span class="role-ok">✓ your role</span>' : ' <span class="role-blocked">✕ your role</span>') : ''}</span>
         <span class="api-arrow">→</span>
-      </a>`).join('')}</div>`;
+      </a>`;}).join('')}</div>`;
 }
 
 /* ================= PAGE: API detail (interactive) ================= */
@@ -788,10 +924,16 @@ function renderApiDetail(root, ep){
     <div class="page-head" style="margin-top:6px;">
       <div class="endpoint-title"><span class="method-tag method-${ep.method.toLowerCase()}">${ep.method}</span><code class="endpoint-path">${ep.path}</code></div>
       <p>${ep.desc}</p>
-      <p class="roles-line">Allowed roles: ${ep.roles.map(r=>`<span class="chip chip-blue">${r}</span>`).join('')}</p>
+      <p class="roles-line">Allowed roles: ${ep.roles.map(r=>`<span class="chip ${session && session.role===r ? 'chip-blue chip-current' : 'chip-blue'}">${r}${session && session.role===r ? ' (you)' : ''}</span>`).join('')}</p>
+      ${!session
+        ? `<p class="auth-hint">Not signed in - sign in above to call this endpoint against the live backend. Requests without a token get a real <code>401</code>.</p>`
+        : !ep.roles.includes(session.role)
+          ? `<p class="auth-hint auth-hint-warn">Signed in as <strong>${session.role}</strong>, which this endpoint does not permit - running it will return a real <code>403</code> from the backend, not a simulated one.</p>`
+          : ''}
     </div>
     <div class="glass panel">
       <h3>Try it</h3>
+      <p style="font-size:13px;color:var(--text-3);margin-top:-6px;">This calls the live FastAPI backend at <code>${ep.method} ${ep.path}</code> on this origin, with your current session's bearer token (if signed in).</p>
       <div class="param-form" id="param-form"></div>
       <button class="btn btn-grad" id="run-btn">Run request</button>
     </div>
@@ -834,151 +976,257 @@ function renderApiDetail(root, ep){
 
 function getParam(name){ const el = document.getElementById('param-'+name); return el ? el.value : ''; }
 
-function runEndpoint(ep){
+function statusCodeClass(code){
+  if(code >= 200 && code < 300) return 'status-200';
+  if(code === 201) return 'status-201';
+  if(code === 401 || code === 403) return 'status-404';
+  if(code === 404) return 'status-404';
+  return 'status-404';
+}
+const STATUS_TEXT = {200:'OK',201:'Created',204:'No Content',401:'Unauthorized',403:'Forbidden',404:'Not Found',422:'Unprocessable Entity'};
+
+/* Real network call against the live FastAPI backend, on this same origin -
+   no simulation. session (if any) supplies the bearer token; an absent or
+   wrong-role session gets the backend's genuine 401/403. */
+async function callApi(method, path, {params, body} = {}){
+  let url = path;
+  if(params){
+    const qs = new URLSearchParams(Object.entries(params).filter(([,v]) => v !== '' && v !== null && v !== undefined));
+    if([...qs].length) url += '?' + qs.toString();
+  }
+  const opts = {method, headers: {...authHeaders()}};
+  if(body !== undefined){
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const resp = await fetch(url, opts);
+  let data = null;
+  try { data = await resp.json(); } catch(e) { /* empty body */ }
+  if(resp.status === 401 && session){
+    // Token rejected (expired after 30min, or from a since-restarted
+    // server) - the topbar was still showing a stale "signed in" chip.
+    // Clear it so the UI stops lying about the session being valid.
+    session = null;
+    sessionStorage.removeItem(SESSION_KEY);
+    renderAuthWidget();
+  }
+  return {status: resp.status, ok: resp.ok, data};
+}
+
+async function runEndpoint(ep){
   const panel = document.getElementById('response-panel');
   const rendered = document.getElementById('response-rendered');
   const raw = document.getElementById('response-raw');
   const statusHolder = document.getElementById('status-line-holder');
+  const runBtn = document.getElementById('run-btn');
   panel.classList.remove('hidden');
   raw.classList.add('hidden');
   document.getElementById('toggle-raw').textContent = 'Show raw JSON';
+  runBtn.disabled = true; runBtn.textContent = 'Running…';
+  rendered.innerHTML = '';
+  statusHolder.innerHTML = '';
 
-  if(ep.slug === 'list-students'){
-    const module = getParam('code_module');
-    const minRisk = parseFloat(getParam('min_risk')) || 0;
-    const limit = parseInt(getParam('limit'),10) || 20;
-    let rows = DATA.students.filter(s => (!module || s.code_module===module) && s.risk_score >= minRisk);
-    rows = rows.slice().sort((a,b)=>b.risk_score-a.risk_score).slice(0, limit);
-    const payload = rows.map(r => ({
-      id_student:r.id_student, code_module:r.code_module, code_presentation:r.code_presentation,
-      risk_score:r.risk_score, risk_band:riskBand(r.risk_score).label.toLowerCase(),
-      top_factors: DATA.feature_importance.slice(0,3).map(f=>({feature:f.feature, contribution:f.importance})),
-    }));
-    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span><span>${payload.length} student(s) returned</span></div>`;
-    rendered.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th></tr></thead>
-      <tbody>${rows.map(rowHtmlShort).join('')}</tbody></table></div>`;
-    bindRowClicks(rendered);
-    raw.textContent = JSON.stringify(payload, null, 2);
+  function showStatus(status, note){
+    const text = STATUS_TEXT[status] || '';
+    statusHolder.innerHTML = `<div class="status-line"><span class="status-code ${statusCodeClass(status)}">${status} ${text}</span>${note?`<span>${note}</span>`:''}</div>`;
+  }
+  function showError(status, data){
+    showStatus(status, 'from live backend');
+    rendered.innerHTML = `<p>${(data && data.detail) ? data.detail : 'Request failed.'}</p>`;
   }
 
-  else if(ep.slug === 'student-risk'){
-    const id = getParam('id_student').trim();
-    const rec = findStudent(id);
-    if(!rec){
-      statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-404">404 Not Found</span><span>Student not found in current scored cohort</span></div>`;
-      rendered.innerHTML = `<p>No student with ID <strong>${id||'(empty)'}</strong> in the current scored sample.</p>`;
-      raw.textContent = JSON.stringify({detail:'Student not found in current scored cohort'}, null, 2);
-      return;
+  try {
+    if(ep.slug === 'list-students'){
+      const {status, ok, data} = await callApi('GET', '/api/students', {
+        params: {code_module: getParam('code_module'), min_risk: getParam('min_risk') || 0, limit: getParam('limit') || 20},
+      });
+      raw.textContent = JSON.stringify(data, null, 2);
+      if(!ok){ showError(status, data); return; }
+      showStatus(status, `${data.length} student(s) returned`);
+      rendered.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th></tr></thead>
+        <tbody>${data.map(rowHtmlShort).join('')}</tbody></table></div>`;
+      bindRowClicks(rendered);
     }
-    const band = riskBand(rec.risk_score);
-    const factors = DATA.feature_importance.slice(0,5);
-    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span></div>`;
-    rendered.innerHTML = `
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-        <div style="font-size:30px;font-weight:700;">${rec.risk_score.toFixed(2)}</div>
-        <span class="risk-badge ${band.cls}">${band.icon} ${band.label} risk</span>
-      </div>
-      <p><a href="#/students/${rec.id_student}">Open full profile for student #${rec.id_student} →</a></p>
-      ${factors.map(f=>`<div class="bar-row"><div class="label">${f.feature.replace(/_/g,' ')}</div><div class="track"><div class="fill" style="width:${(f.importance/factors[0].importance*100).toFixed(1)}%;background:var(--blue);"></div></div><div class="val num-val">${(f.importance*100).toFixed(1)}%</div></div>`).join('')}`;
-    raw.textContent = JSON.stringify({
-      id_student:rec.id_student, code_module:rec.code_module, code_presentation:rec.code_presentation,
-      risk_score:rec.risk_score, risk_band:band.label.toLowerCase(),
-      top_factors: factors.map(f=>({feature:f.feature, contribution:f.importance})),
-    }, null, 2);
-  }
 
-  else if(ep.slug === 'cohort-overview'){
-    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span><span>${DATA.cohort_overview.length} module(s)</span></div>`;
-    rendered.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Module</th><th>Students</th><th>Mean risk</th><th>% high-risk</th><th>Historic withdrawal</th></tr></thead>
-      <tbody>${DATA.cohort_overview.map(c=>`<tr><td>${c.code_module}</td><td class="num-val">${c.n_students}</td><td class="num-val">${c.mean_risk}</td><td class="num-val">${c.pct_high_risk}%</td><td class="num-val">${c.withdrawal_rate_historic}%</td></tr>`).join('')}</tbody></table></div>`;
-    raw.textContent = JSON.stringify(DATA.cohort_overview, null, 2);
-  }
-
-  else if(ep.slug === 'log-intervention'){
-    const id = getParam('id_student').trim();
-    const note = getParam('note').trim();
-    if(!id || !note){
-      statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-404">422 Unprocessable</span><span>id_student and note are both required</span></div>`;
-      rendered.innerHTML = `<p>Provide both a student ID and a note before running the request.</p>`;
-      raw.textContent = JSON.stringify({detail:'id_student and note are required'}, null, 2);
-      return;
+    else if(ep.slug === 'student-risk'){
+      const id = getParam('id_student').trim();
+      if(!id){ showStatus(422, 'id_student is required'); rendered.innerHTML = `<p>Enter a student ID above.</p>`; return; }
+      const {status, ok, data} = await callApi('GET', `/api/students/${encodeURIComponent(id)}`);
+      raw.textContent = JSON.stringify(data, null, 2);
+      if(!ok){ showError(status, data); return; }
+      const band = riskBand(data.risk_score);
+      showStatus(status);
+      rendered.innerHTML = `
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+          <div style="font-size:30px;font-weight:700;">${data.risk_score.toFixed(2)}</div>
+          <span class="risk-badge ${band.cls}">${band.icon} ${band.label} risk</span>
+        </div>
+        <p><a href="#/students/${data.id_student}">Open full profile for student #${data.id_student} →</a></p>
+        ${factorBarsHtml(data.top_factors)}`;
     }
-    const record = {id_student:Number(id)||id, created_by:'demo_advisor', note, created_at:new Date().toISOString()};
-    sessionInterventions.push(record);
-    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-201">201 Created</span><span>Logged for this session only (in-memory demo store)</span></div>`;
-    rendered.innerHTML = `<p>Intervention recorded for student <strong>#${record.id_student}</strong> at ${new Date(record.created_at).toLocaleString()}.</p>
-      <p><a href="#/students/${record.id_student}">Open that student's profile →</a></p>`;
-    raw.textContent = JSON.stringify(record, null, 2);
-  }
 
-  else if(ep.slug === 'get-interventions'){
-    const id = getParam('id_student').trim();
-    const rows = sessionInterventions.filter(r => String(r.id_student)===String(id));
-    statusHolder.innerHTML = `<div class="status-line"><span class="status-code status-200">200 OK</span><span>${rows.length} record(s) this session</span></div>`;
-    rendered.innerHTML = rows.length
-      ? `<div class="table-wrap"><table><thead><tr><th>Created</th><th>By</th><th>Note</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="mono">${new Date(r.created_at).toLocaleString()}</td><td>${r.created_by}</td><td>${r.note}</td></tr>`).join('')}</tbody></table></div>`
-      : `<p>No interventions logged yet for student <strong>#${id||'(empty)'}</strong> in this session. Log one via <a href="#/api/log-intervention">POST /interventions</a> first.</p>`;
-    raw.textContent = JSON.stringify(rows, null, 2);
+    else if(ep.slug === 'cohort-overview'){
+      const {status, ok, data} = await callApi('GET', '/api/cohort');
+      raw.textContent = JSON.stringify(data, null, 2);
+      if(!ok){ showError(status, data); return; }
+      showStatus(status, `${data.length} module(s)`);
+      rendered.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Module</th><th>Students</th><th>Mean risk</th><th>% high-risk</th><th>Historic withdrawal</th></tr></thead>
+        <tbody>${data.map(c=>`<tr><td>${c.code_module}</td><td class="num-val">${c.n_students}</td><td class="num-val">${c.mean_risk}</td><td class="num-val">${c.pct_high_risk}%</td><td class="num-val">${c.withdrawal_rate_historic}%</td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    else if(ep.slug === 'log-intervention'){
+      const id = getParam('student_id').trim();
+      const note = getParam('note').trim();
+      if(!id || !note){
+        showStatus(422, 'student_id and note are both required');
+        rendered.innerHTML = `<p>Provide both a student ID and a note before running the request.</p>`;
+        raw.textContent = JSON.stringify({detail:'student_id and note are required'}, null, 2);
+        return;
+      }
+      const {status, ok, data} = await callApi('POST', '/api/interventions', {body: {student_id: Number(id)||id, note}});
+      raw.textContent = JSON.stringify(data, null, 2);
+      if(!ok){ showError(status, data); return; }
+      showStatus(status, 'Logged on the live backend (in-memory store, shared across sessions until it restarts)');
+      rendered.innerHTML = `<p>Intervention recorded for student <strong>#${data.id_student}</strong> at ${new Date(data.created_at).toLocaleString()} by <strong>${data.created_by}</strong>.</p>
+        <p><a href="#/students/${data.id_student}">Open that student's profile →</a></p>`;
+    }
+
+    else if(ep.slug === 'get-interventions'){
+      const id = getParam('id_student').trim();
+      if(!id){ showStatus(422, 'id_student is required'); rendered.innerHTML = `<p>Enter a student ID above.</p>`; return; }
+      const {status, ok, data} = await callApi('GET', `/api/interventions/${encodeURIComponent(id)}`);
+      raw.textContent = JSON.stringify(data, null, 2);
+      if(!ok){ showError(status, data); return; }
+      showStatus(status, `${data.length} record(s)`);
+      rendered.innerHTML = data.length
+        ? `<div class="table-wrap"><table><thead><tr><th>Created</th><th>By</th><th>Note</th></tr></thead><tbody>${data.map(r=>`<tr><td class="mono">${new Date(r.created_at).toLocaleString()}</td><td>${r.created_by}</td><td>${r.note}</td></tr>`).join('')}</tbody></table></div>`
+        : `<p>No interventions logged yet for student <strong>#${id}</strong>. Log one via <a href="#/api/log-intervention">POST /api/interventions</a> first.</p>`;
+    }
+  } catch(err){
+    showStatus(0, 'network error');
+    rendered.innerHTML = `<p>Could not reach the backend: ${err.message}</p>`;
+    raw.textContent = String(err);
+  } finally {
+    runBtn.disabled = false; runBtn.textContent = 'Run request';
   }
+}
+
+function apiErrorMessage(status, data){
+  if(status === 401) return 'Your session expired or was rejected by the backend - sign in again above (30-minute token lifetime).';
+  if(status === 403) return (data && data.detail) ? data.detail : 'Your role is not permitted to call this endpoint.';
+  return (data && data.detail) ? data.detail : `Backend returned HTTP ${status}.`;
+}
+
+function signInRequiredPanel(){
+  return `<div class="glass panel">
+    <h3>Sign in required</h3>
+    <p>This view is role-scoped - sign in above (as admin, advisor, or module_leader) to open it. Every request it makes from here on is a real, authenticated call to <code>backend/main.py</code>, not a local simulation.</p>
+  </div>`;
 }
 
 /* ================= PAGE: Student register ================= */
 let regModule = '', regSearch = '';
+let regLiveCache = null; // full live fetch from GET /api/students, refreshed per page visit
+
 function renderStudentList(root){
-  const modules = [...new Set(DATA.students.map(s=>s.code_module))].sort();
+  if(!session){
+    root.innerHTML = `<div class="page-head"><span class="eyebrow">Component 4 · Front-end</span><h1>Student risk register</h1></div>${signInRequiredPanel()}`;
+    return;
+  }
+  regLiveCache = null;
   root.innerHTML = `
     <div class="page-head">
       <span class="eyebrow">Component 4 · Front-end</span>
       <h1>Student risk register</h1>
-      <p>Sorted by calibrated risk score, descending. Click any row to open the individual profile.</p>
+      <p>Sorted by calibrated risk score, descending, live from <code>GET /api/students</code>. Click any row to open the individual profile.</p>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
       <input type="text" id="reg-search" placeholder="Search by student ID…" value="${regSearch}" />
-      <select id="reg-module"><option value="">All modules</option>${modules.map(m=>`<option value="${m}" ${m===regModule?'selected':''}>${m}</option>`).join('')}</select>
+      <select id="reg-module"><option value="">All modules</option></select>
     </div>
     <div class="glass panel">
       <div class="table-wrap"><table>
         <thead><tr><th>Student</th><th>Module</th><th>Risk</th><th>Score</th><th>Submission rate</th><th>Active days</th></tr></thead>
-        <tbody id="reg-body"></tbody>
+        <tbody id="reg-body"><tr><td colspan="6" style="color:var(--text-3);">Loading from the live backend…</td></tr></tbody>
       </table></div>
     </div>`;
   document.getElementById('reg-search').addEventListener('input', e => { regSearch = e.target.value; renderRegBody(); });
   document.getElementById('reg-module').addEventListener('change', e => { regModule = e.target.value; renderRegBody(); });
-  renderRegBody();
+  loadRegister(root);
 }
+
+async function loadRegister(root){
+  try {
+    const {ok, status, data} = await callApi('GET', '/api/students', {params: {limit: 500}});
+    if(!root.isConnected) return; // navigated away before this resolved
+    if(!ok){
+      document.getElementById('reg-body').innerHTML = `<tr><td colspan="6" style="color:var(--critical);">${apiErrorMessage(status, data)}</td></tr>`;
+      return;
+    }
+    regLiveCache = data;
+    const modules = [...new Set(data.map(s=>s.code_module))].sort();
+    const sel = document.getElementById('reg-module');
+    if(sel) sel.innerHTML = `<option value="">All modules</option>${modules.map(m=>`<option value="${m}" ${m===regModule?'selected':''}>${m}</option>`).join('')}`;
+    renderRegBody();
+  } catch(err){
+    if(root.isConnected) document.getElementById('reg-body').innerHTML = `<tr><td colspan="6" style="color:var(--critical);">Could not reach the backend: ${err.message}</td></tr>`;
+  }
+}
+
 function renderRegBody(){
-  let rows = DATA.students;
+  const tbody = document.getElementById('reg-body');
+  if(!tbody || !regLiveCache) return;
+  let rows = regLiveCache;
   if(regModule) rows = rows.filter(r=>r.code_module===regModule);
   if(regSearch) rows = rows.filter(r=>String(r.id_student).includes(regSearch.trim()));
   rows = rows.slice().sort((a,b)=>b.risk_score-a.risk_score).slice(0,80);
-  const tbody = document.getElementById('reg-body');
-  tbody.innerHTML = rows.map(r => {
+  tbody.innerHTML = rows.length ? rows.map(r => {
     const band = riskBand(r.risk_score);
     return `<tr class="row-click" data-id="${r.id_student}">
       <td class="mono">#${r.id_student}</td><td>${r.code_module} <span style="color:var(--text-3)">${r.code_presentation}</span></td>
       <td><span class="risk-badge ${band.cls}">${band.icon} ${band.label}</span></td>
       <td class="num-val">${r.risk_score.toFixed(2)}</td><td class="num-val">${(r.submission_rate*100).toFixed(0)}%</td><td class="num-val">${r.active_days}</td></tr>`;
-  }).join('');
+  }).join('') : `<tr><td colspan="6" style="color:var(--text-3);">No students match.</td></tr>`;
   bindRowClicks(tbody);
 }
 
 /* ================= PAGE: Student detail ================= */
 function renderStudentDetail(root, id){
-  const rec = findStudent(id);
-  if(!rec){
-    root.innerHTML = `
-      <a href="#/students" class="back-link">← Student register</a>
-      <div class="glass panel"><h3>Student not found</h3><p>No student with ID <strong>${id}</strong> exists in the current scored sample of ${DATA.students.length} students. Try one from the <a href="#/students">register</a>.</p></div>`;
+  if(!session){
+    root.innerHTML = `<div class="page-head"><span class="eyebrow">Student profile</span><h1>Student #${id}</h1></div>${signInRequiredPanel()}`;
     return;
   }
+  root.innerHTML = `<div class="page-head"><span class="eyebrow">Student profile</span><h1>Student #${id}</h1><p style="color:var(--text-3);">Loading from <code>GET /api/students/${id}</code>…</p></div>`;
+  loadStudentDetail(root, id);
+}
+
+async function loadStudentDetail(root, id){
+  let result;
+  try {
+    result = await callApi('GET', `/api/students/${encodeURIComponent(id)}`);
+  } catch(err){
+    if(root.isConnected) root.innerHTML = `
+      <a href="#/students" class="back-link">← Student register</a>
+      <div class="glass panel"><h3>Could not reach the backend</h3><p>${err.message}</p></div>`;
+    return;
+  }
+  if(!root.isConnected) return; // navigated away before this resolved
+  const {ok, status, data} = result;
+  if(!ok){
+    const title = status === 401 ? 'Session expired' : status === 403 ? 'Not permitted' : 'Student not found';
+    root.innerHTML = `
+      <a href="#/students" class="back-link">← Student register</a>
+      <div class="glass panel"><h3>${title}</h3><p>${apiErrorMessage(status, data)}</p></div>`;
+    return;
+  }
+  const rec = data;
   const band = riskBand(rec.risk_score);
-  const factors = DATA.feature_importance.slice(0,6);
   root.innerHTML = `
     <a href="#/students" class="back-link">← Student register</a>
     <div class="page-head" style="margin-top:6px;">
       <span class="eyebrow">Student profile</span>
       <h1>Student #${rec.id_student}</h1>
-      <p>${rec.code_module} ${rec.code_presentation} &middot; ${rec.gender} &middot; ${rec.age_band} &middot; ${rec.highest_education} &middot; ${rec.region}</p>
+      <p>${rec.code_module} ${rec.code_presentation}${rec.gender ? ` &middot; ${rec.gender}` : ''}${rec.age_band ? ` &middot; ${rec.age_band}` : ''}${rec.highest_education ? ` &middot; ${rec.highest_education}` : ''}${rec.region ? ` &middot; ${rec.region}` : ''}</p>
     </div>
     <div class="two-col">
       <div class="glass panel">
@@ -989,26 +1237,26 @@ function renderStudentDetail(root, id){
         </div>
         <div class="table-wrap"><table>
           <tbody>
-            <tr><td>Submission rate</td><td class="num-val">${(rec.submission_rate*100).toFixed(0)}%</td></tr>
+            <tr><td>Submission rate</td><td class="num-val">${rec.submission_rate!=null ? (rec.submission_rate*100).toFixed(0)+'%' : ' - '}</td></tr>
             <tr><td>Mean assessment score</td><td class="num-val">${rec.mean_score ?? ' - '}</td></tr>
-            <tr><td>Active VLE days</td><td class="num-val">${rec.active_days}</td></tr>
-            <tr><td>Early-window clicks (first 4 weeks)</td><td class="num-val">${rec.early_clicks}</td></tr>
-            <tr><td>Previous attempts at this module</td><td class="num-val">${rec.num_of_prev_attempts}</td></tr>
-            <tr><td>Studied credits</td><td class="num-val">${rec.studied_credits}</td></tr>
+            <tr><td>Active VLE days</td><td class="num-val">${rec.active_days ?? ' - '}</td></tr>
+            <tr><td>Early-window clicks (first 4 weeks)</td><td class="num-val">${rec.early_clicks ?? ' - '}</td></tr>
+            <tr><td>Previous attempts at this module</td><td class="num-val">${rec.num_of_prev_attempts ?? ' - '}</td></tr>
+            <tr><td>Studied credits</td><td class="num-val">${rec.studied_credits ?? ' - '}</td></tr>
           </tbody>
         </table></div>
-        <p style="margin-top:12px;font-size:13.5px;color:var(--text-3);">Actual outcome on record: <strong style="color:var(--text-2)">${rec.final_result}</strong> - shown here for evaluation only; hidden from advisors in a live deployment before the presentation ends.</p>
+        <p style="margin-top:12px;font-size:13.5px;color:var(--text-3);">Actual outcome on record: <strong style="color:var(--text-2)">${rec.final_result ?? 'Hidden from your role (advisor) until the presentation ends'}</strong> - shown here for evaluation only.</p>
       </div>
       <div class="glass panel">
         <h3>Top contributing factors</h3>
-        <p style="font-size:14px;">Model-wide feature importance - the same ranking is used to explain any student's score.</p>
+        <p style="font-size:14px;">SHAP attribution for this student specifically - positive values pushed the score up, negative values pulled it down.</p>
         <div id="student-factors"></div>
         <div style="margin-top:16px;">
-          <a href="#/api/student-risk" class="link-btn">Inspect via GET /students/{id}/risk →</a>
+          <a href="#/api/student-risk" class="link-btn">Inspect via GET /api/students/{id} →</a>
         </div>
       </div>
     </div>`;
-  buildFeatureImportanceChart(document.getElementById('student-factors'), 6);
+  buildStudentFactorsChart(document.getElementById('student-factors'), rec.top_factors);
 }
 
 /* ================= Router ================= */

@@ -1,18 +1,10 @@
-"""
-Model training/evaluation for student-attrition risk scoring.
-
-Maps to Modelling component objectives 3-6 (candidate algorithms, imbalanced-
-classification metrics, probability calibration, feature attribution, subgroup
-fairness check). Trains on the dataset produced by ../data_engineering/etl.py.
-
-Usage: python train_models.py
-"""
 import json
 from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
+import shap
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
@@ -22,7 +14,8 @@ from sklearn.metrics import (average_precision_score, brier_score_loss,
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from xgboost import XGBClassifier
+
+from modelling.xgb_calibratable import XGBClassifierCalibratable
 
 OUT = Path(__file__).resolve().parents[1] / "output"
 
@@ -72,6 +65,27 @@ def reliability_curve(y_true, proba, n_bins=10):
     return points
 
 
+def to_dense(matrix):
+    return matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
+
+
+def shap_matrix_for(clf, X_transformed, background):
+    """Per-instance SHAP contributions to the positive (withdrawn) class,
+    regardless of whether `clf` is a tree ensemble or a linear model."""
+    if hasattr(clf, "feature_importances_"):
+        raw = shap.TreeExplainer(clf).shap_values(X_transformed)
+    else:
+        raw = shap.LinearExplainer(clf, background).shap_values(X_transformed)
+    raw = raw[1] if isinstance(raw, list) else raw
+    raw = np.asarray(raw)
+    return raw[:, :, 1] if raw.ndim == 3 else raw
+
+
+def top_factors_for(shap_row, feature_names, k=5):
+    order = np.argsort(-np.abs(shap_row))[:k]
+    return [{"feature": feature_names[i], "contribution": round(float(shap_row[i]), 4)} for i in order]
+
+
 def main():
     df = pd.read_csv(OUT / "processed_student_data.csv")
     df = df.dropna(subset=[TARGET])
@@ -94,7 +108,7 @@ def main():
             n_estimators=300, max_depth=12, min_samples_leaf=5,
             class_weight="balanced", random_state=42, n_jobs=-1,
         ),
-        "xgboost": XGBClassifier(
+        "xgboost": XGBClassifierCalibratable(
             n_estimators=300, max_depth=5, learning_rate=0.05,
             subsample=0.8, colsample_bytree=0.8, eval_metric="logloss",
             random_state=42, n_jobs=-1,
@@ -141,6 +155,7 @@ def main():
 
     imp_df = pd.DataFrame({"feature": feature_names, "importance": importances})
     imp_df = imp_df.sort_values("importance", ascending=False).head(15)
+    imp_df["importance"] = imp_df["importance"] / imp_df["importance"].sum()
     feature_importance = [
         {"feature": r.feature, "importance": round(float(r.importance), 4)}
         for r in imp_df.itertuples()
@@ -174,12 +189,25 @@ def main():
 
     # --- Sample predictions for the dashboard (per-student) -------------------
     sample = subgroup_rows.sample(n=min(400, len(subgroup_rows)), random_state=7)
+
+    # --- Per-student SHAP explanations (objective 6: true feature attribution,
+    # replaces the model-wide importance proxy - same underlying `best_pipe`
+    # already used for feature_importance.json, just evaluated per-instance) ---
+    X_sample_transformed = to_dense(pre.transform(X_test.loc[sample.index])).astype(float)
+    background = to_dense(pre.transform(X_train)).astype(float)
+    rng = np.random.RandomState(7)
+    if len(background) > 200:
+        background = background[rng.choice(len(background), 200, replace=False)]
+    shap_matrix = shap_matrix_for(clf, X_sample_transformed, background)
+    top_factors = [top_factors_for(row, feature_names) for row in shap_matrix]
+
     sample_out = sample[[
         "id_student", "code_module", "code_presentation", "gender", "age_band",
         "highest_education", "region", "num_of_prev_attempts", "studied_credits",
         "submission_rate", "mean_score", "total_clicks", "active_days",
         "early_clicks", "risk_score", "true_label", "final_result",
     ]].copy()
+    sample_out["top_factors"] = top_factors
     sample_out["risk_score"] = sample_out["risk_score"].round(4)
     sample_out = sample_out.sort_values("risk_score", ascending=False)
 
@@ -197,6 +225,8 @@ def main():
     (OUT / "feature_importance.json").write_text(json.dumps(feature_importance, indent=2))
     (OUT / "fairness_audit.json").write_text(json.dumps(fairness, indent=2))
     sample_out.to_json(OUT / "sample_predictions.json", orient="records", indent=2)
+    trimmed = sample_out.head(200).rename(columns={"top_factors": "top_features"})
+    trimmed.to_json(OUT / "sample_predictions_trimmed.json", orient="records", indent=2)
 
     joblib.dump(calibrated, OUT / "attrition_risk_model.joblib")
 
